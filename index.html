@@ -135,6 +135,184 @@ const INIT_PROJECTS = [
   },
 ];
 
+// ─── Neutrality Statement ─────────────────────────────────────────────────────
+const NEUTRALITY = "The People's Voice is a nonpartisan, independent civic engagement platform. It is not affiliated with, endorsed by, or connected to any political party, government body, or elected official. All AI analysis is generated to be factually neutral and balanced. Vote data reflects community sentiment only and carries no official weight.";
+
+// ─── Representative Data ──────────────────────────────────────────────────────
+const REPRESENTATIVES = [
+  {
+    id: "rep-001", name: "J. Bush", title: "Council Member", body: "Village of Concord Council",
+    jurisdiction: "Village of Concord", party: "Nonpartisan", photo: "JB",
+    contact: "clerk@villageofconcord.com", website: "villageofconcord.com",
+    votes: {
+      "CONCORD-2025-01": { vote: "yes", note: "Motioned to approve Jesse Brigham Construction contract." },
+      "CONCORD-ORD-2025-02": { vote: "yes", note: "Motioned to enroll in Michigan Fire Insurance Program." },
+    }
+  },
+  {
+    id: "rep-002", name: "K. George", title: "Council Member", body: "Village of Concord Council",
+    jurisdiction: "Village of Concord", party: "Nonpartisan", photo: "KG",
+    contact: "clerk@villageofconcord.com", website: "villageofconcord.com",
+    votes: {
+      "CONCORD-2025-01": { vote: "yes", note: "Seconded motion to approve sewer contract." },
+      "CONCORD-ORD-2025-02": { vote: "yes", note: "Seconded motion for Fire Insurance Program." },
+    }
+  },
+  {
+    id: "rep-003", name: "Angelita Gunn", title: "Ward 3 Council Member", body: "Jackson City Council",
+    jurisdiction: "City of Jackson", party: "Nonpartisan", photo: "AG",
+    contact: "citycouncil@cityofjackson.org", website: "cityofjackson.org",
+    votes: {
+      "JACKSON-2025-03": { vote: "yes", note: "Sponsored and voted yes on Urban Agriculture Ordinance." },
+      "JACKSON-CC-2025-04": { vote: "yes", note: "Voted in favor of Ward 5 safety initiative." },
+    }
+  },
+  {
+    id: "rep-004", name: "Shalanda Hunt", title: "Ward 5 Council Member", body: "Jackson City Council",
+    jurisdiction: "City of Jackson", party: "Nonpartisan", photo: "SH",
+    contact: "citycouncil@cityofjackson.org", website: "cityofjackson.org",
+    votes: {
+      "JACKSON-2025-03": { vote: "yes", note: "Voted in favor of Urban Agriculture Ordinance." },
+      "JACKSON-CC-2025-04": { vote: "yes", note: "Sponsored Ward 5 Community Safety Initiative." },
+    }
+  },
+  {
+    id: "rep-005", name: "Arlene Robinson", title: "Ward 1 Council Member", body: "Jackson City Council",
+    jurisdiction: "City of Jackson", party: "Nonpartisan", photo: "AR",
+    contact: "citycouncil@cityofjackson.org", website: "cityofjackson.org",
+    votes: {
+      "JACKSON-2025-03": { vote: "not-recorded", note: "No recorded vote on this bill yet." },
+    }
+  },
+  {
+    id: "rep-006", name: "Sen. Thomas Walcott", title: "State Senator", body: "Michigan Senate",
+    jurisdiction: "State of Michigan", party: "Republican", photo: "TW",
+    contact: "walcott@senate.michigan.gov", website: "senate.michigan.gov",
+    votes: {
+      "MI-SB-2025-12": { vote: "yes", note: "Sponsored and voted yes on Small Farm Exemption Act." },
+    }
+  },
+];
+
+// ─── Representative Accountability Component ──────────────────────────────────
+function RepTracker({ bills }) {
+  const [filter, setFilter] = useState("all");
+  const [selected, setSelected] = useState(null);
+
+  const filtered = filter === "all" ? REPRESENTATIVES : REPRESENTATIVES.filter(r => r.jurisdiction === filter);
+
+  const getAlignment = (rep) => {
+    const billsWithBoth = bills.filter(b => rep.votes[b.id] && rep.votes[b.id].vote !== "not-recorded");
+    if (billsWithBoth.length === 0) return null;
+    let aligned = 0;
+    billsWithBoth.forEach(b => {
+      const communityWon = b.votes.yes > b.votes.no ? "yes" : "no";
+      if (rep.votes[b.id].vote === communityWon) aligned++;
+    });
+    return Math.round((aligned / billsWithBoth.length) * 100);
+  };
+
+  const voteColor = (v) => v === "yes" ? "#1a6b3c" : v === "no" ? "#c0392b" : v === "abstain" ? "#888" : "#bbb";
+  const voteBg = (v) => v === "yes" ? "#eef7f1" : v === "no" ? "#fdf0ef" : v === "abstain" ? "#f5f5f5" : "#f9f9f9";
+  const voteLabel = (v) => v === "yes" ? "✅ Yes" : v === "no" ? "❌ No" : v === "abstain" ? "⬜ Abstain" : "— Not Recorded";
+
+  return (
+    <div>
+      <div style={{background:"#fff8e7",border:"1px solid #f0c040",borderRadius:8,padding:"12px 16px",marginBottom:16,display:"flex",gap:10,alignItems:"flex-start"}}>
+        <span style={{fontSize:20,flexShrink:0}}>⚖️</span>
+        <div style={{fontFamily:"'Lora',serif",fontSize:13,color:"#555",lineHeight:1.7}}>
+          <strong style={{color:"#1a1a2e",fontFamily:"'Playfair Display',serif"}}>Accountability Tracker</strong> — This section shows how your elected representatives actually voted on each bill, compared to how the community voted here. Data is sourced from public meeting minutes and official records. <em>This platform takes no political position.</em>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+        {[["all","All"],["Village of Concord","🏘 Concord"],["City of Jackson","🏙 Jackson"],["State of Michigan","🏛 State"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setFilter(v)} style={{background:filter===v?"#1a1a2e":"#fff",color:filter===v?"#f0c040":"#555",border:`1px solid ${filter===v?"#1a1a2e":"#ddd"}`,padding:"7px 14px",borderRadius:20,fontFamily:"'Playfair Display',serif",fontSize:12,fontWeight:filter===v?700:400}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {filtered.map(rep => {
+        const alignment = getAlignment(rep);
+        const repBills = bills.filter(b => rep.votes[b.id]);
+        const isOpen = selected === rep.id;
+        return (
+          <div key={rep.id} style={{background:"#fff",border:"1px solid #e5dece",borderRadius:10,marginBottom:12,overflow:"hidden",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
+            <div style={{padding:"16px 18px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+              <div style={{width:48,height:48,borderRadius:"50%",background:"#1a1a2e",color:"#f0c040",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontFamily:"'Playfair Display',serif",fontSize:15,flexShrink:0}}>{rep.photo}</div>
+              <div style={{flex:1,minWidth:160}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:16,color:"#1a1a2e"}}>{rep.name}</div>
+                <div style={{fontSize:12,color:"#888",fontFamily:"'Lora',serif"}}>{rep.title} · {rep.body}</div>
+                <div style={{fontSize:11,color:"#aaa",marginTop:2}}>{rep.party}</div>
+              </div>
+              <div style={{textAlign:"center",minWidth:80}}>
+                {alignment !== null ? (
+                  <>
+                    <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:24,color:alignment>=70?"#1a6b3c":alignment>=40?"#8a6000":"#c0392b"}}>{alignment}%</div>
+                    <div style={{fontSize:11,color:"#888",textTransform:"uppercase",letterSpacing:1}}>With People</div>
+                    <div style={{height:6,background:"#eee",borderRadius:3,marginTop:4,overflow:"hidden"}}>
+                      <div style={{width:`${alignment}%`,height:"100%",background:alignment>=70?"#1a6b3c":alignment>=40?"#f0c040":"#c0392b",borderRadius:3}}/>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{fontSize:12,color:"#bbb",fontStyle:"italic"}}>No data yet</div>
+                )}
+              </div>
+              <button onClick={()=>setSelected(isOpen?null:rep.id)} style={{background:"transparent",border:"1px solid #e0e0e0",borderRadius:6,padding:"8px 14px",fontFamily:"'Playfair Display',serif",fontSize:13,color:"#555"}}>
+                {isOpen?"▲ Close":"▼ See Votes"}
+              </button>
+            </div>
+
+            {isOpen && (
+              <div style={{borderTop:"1px solid #f0ece4",padding:"14px 18px",background:"#faf8f3"}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a1a2e",marginBottom:12}}>Official Votes vs. Community Sentiment</div>
+                {repBills.length === 0 && <div style={{color:"#bbb",fontStyle:"italic",fontSize:13}}>No recorded votes yet.</div>}
+                {repBills.map(b => {
+                  const rv = rep.votes[b.id];
+                  const total = b.votes.yes + b.votes.no + b.votes.abstain;
+                  const communityLeans = b.votes.yes > b.votes.no ? "yes" : "no";
+                  const aligned = rv.vote !== "not-recorded" && rv.vote === communityLeans;
+                  const misaligned = rv.vote !== "not-recorded" && rv.vote !== communityLeans;
+                  return (
+                    <div key={b.id} style={{marginBottom:14,paddingBottom:14,borderBottom:"1px solid #eee"}}>
+                      <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a1a2e",marginBottom:6}}>{b.title}</div>
+                      <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:6}}>
+                        <div style={{background:voteBg(rv.vote),color:voteColor(rv.vote),fontWeight:700,fontSize:13,padding:"5px 12px",borderRadius:20,fontFamily:"'Playfair Display',serif"}}>
+                          Rep voted: {voteLabel(rv.vote)}
+                        </div>
+                        <div style={{background:"#f0f0f0",color:"#555",fontSize:13,padding:"5px 12px",borderRadius:20,fontFamily:"'Lora',serif"}}>
+                          Community: {pct(b.votes.yes,total)}% Support · {pct(b.votes.no,total)}% Oppose
+                        </div>
+                        {aligned && <div style={{background:"#eef7f1",color:"#1a6b3c",fontSize:12,fontWeight:700,padding:"5px 10px",borderRadius:20}}>✅ Aligned with community</div>}
+                        {misaligned && <div style={{background:"#fdf0ef",color:"#c0392b",fontSize:12,fontWeight:700,padding:"5px 10px",borderRadius:20}}>⚠️ Voted against community</div>}
+                      </div>
+                      {rv.note && <div style={{fontSize:12,color:"#888",fontFamily:"'Lora',serif",fontStyle:"italic"}}>📋 {rv.note}</div>}
+                    </div>
+                  );
+                })}
+                <div style={{display:"flex",gap:8,marginTop:4}}>
+                  <a href={`mailto:${rep.contact}`} style={{fontSize:12,color:"#1a5c8a",fontFamily:"'Lora',serif",textDecoration:"none"}}>✉️ Contact {rep.name.split(" ")[0]}</a>
+                  <span style={{color:"#ddd"}}>·</span>
+                  <a href={`https://${rep.website}`} target="_blank" style={{fontSize:12,color:"#1a5c8a",fontFamily:"'Lora',serif",textDecoration:"none"}}>🌐 Official Website</a>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:"12px 16px",marginTop:8}}>
+        <div style={{fontFamily:"'Lora',serif",fontSize:12,color:"#888",lineHeight:1.7,textAlign:"center"}}>
+          Vote records are sourced from public meeting minutes and official government records.<br/>
+          The People's Voice does not editorialize on representative performance. Data is presented as-is for civic transparency.<br/>
+          <strong style={{color:"#555"}}>See an error? Contact us to correct the record.</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const pct = (v, t) => t === 0 ? 0 : Math.round((v / t) * 100);
 const LEVEL_META = {
@@ -214,7 +392,10 @@ function AIBreakdown({ bill }) {
 
   return (
     <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:10,padding:20}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,color:"#1a1a2e",marginBottom:12}}>🤖 AI Community Analysis</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,color:"#1a1a2e",marginBottom:8}}>🤖 AI Community Analysis</div>
+      <div style={{background:"#f0f4ff",border:"1px solid #c8d8f0",borderRadius:6,padding:"8px 12px",marginBottom:12,fontSize:11,color:"#1a5c8a",fontFamily:"'Lora',serif",lineHeight:1.6}}>
+        ⚖️ <strong>Nonpartisan:</strong> This analysis is generated to present factual, balanced information only. The People's Voice has no political affiliation and takes no position on any bill.
+      </div>
       <p style={{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.75,color:"#333",marginBottom:16}}>{data.plain_english}</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
         <div style={{background:"#eef7f1",borderRadius:7,padding:12}}>
@@ -626,6 +807,9 @@ function AuthScreen({ onAuth }) {
           <div style={{marginTop:10,fontSize:11,color:"#5b3a8c",background:"#f0ebf8",padding:"4px 14px",borderRadius:20,display:"inline-block",fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>
             Vote · Build · Change
           </div>
+          <div style={{marginTop:10,fontSize:11,color:"#888",fontFamily:"'Lora',serif",lineHeight:1.6,padding:"0 10px"}}>
+            ⚖️ Nonpartisan · Independent · Not affiliated with any government or political party
+          </div>
         </div>
 
         {step==="login"&&<>
@@ -758,7 +942,7 @@ function App() {
 
         {/* Main tabs */}
         <div style={{maxWidth:900,margin:"0 auto",padding:"0 20px",display:"flex",gap:0}}>
-          {[["bills","🗳 Bills & Voting"],["projects","🌱 Community Projects"]].map(([t,l])=>(
+          {[["bills","🗳 Bills & Voting"],["projects","🌱 Community Projects"],["reps","🏛 Rep Accountability"]].map(([t,l])=>(
             <button key={t} onClick={()=>setMainTab(t)} style={{background:"transparent",border:"none",borderBottom:mainTab===t?"3px solid #f0c040":"3px solid transparent",padding:"12px 20px",fontFamily:"'Playfair Display',serif",fontWeight:mainTab===t?700:400,fontSize:14,cursor:"pointer",color:mainTab===t?"#f0c040":"#8899aa"}}>
               {l}
             </button>
@@ -816,11 +1000,23 @@ function App() {
             <ProjectCard key={proj.id} project={proj} onPledge={handlePledge} onSupport={handleSupport} onComment={handleProjectComment} userSupported={userSupported} onRepGain={gainRep}/>
           ))}
         </>}
+
+        {/* REPS TAB */}
+        {mainTab==="reps"&&<>
+          <div style={{marginBottom:16}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:20,color:"#1a1a2e",marginBottom:4}}>Representative Accountability</div>
+            <div style={{fontFamily:"'Lora',serif",fontSize:13,color:"#888"}}>How your elected officials voted — compared to how you voted.</div>
+          </div>
+          <RepTracker bills={bills}/>
+        </>}
       </div>
 
-      <div style={{background:"#1a1a2e",borderTop:"3px solid #f0c040",color:"#556677",textAlign:"center",padding:"18px",fontSize:12,lineHeight:1.8}}>
-        <div style={{fontFamily:"'Playfair Display',serif",color:"#f0c040",fontSize:14,marginBottom:4}}>The People's Voice — Jackson County, MI</div>
-        Votes & proposals are unofficial civic engagement · Not affiliated with any government body<br/>
+      <div style={{background:"#1a1a2e",borderTop:"3px solid #f0c040",color:"#556677",textAlign:"center",padding:"24px 20px",fontSize:12,lineHeight:1.9}}>
+        <div style={{fontFamily:"'Playfair Display',serif",color:"#f0c040",fontSize:14,marginBottom:8}}>The People's Voice — Jackson County, MI</div>
+        <div style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"10px 16px",maxWidth:600,margin:"0 auto 10px",fontSize:11,color:"#8899aa",lineHeight:1.7}}>
+          ⚖️ <strong style={{color:"#aab"}}>Nonpartisan Statement:</strong> This platform is not affiliated with, endorsed by, or connected to any political party, government body, or elected official. All analysis is factual and balanced. Community votes are for civic engagement only and carry no official weight.
+        </div>
+        Votes &amp; proposals are unofficial civic engagement · Not affiliated with any government body<br/>
         <span style={{color:"#5b3a8c"}}>Concord → Jackson → Michigan → Nation</span>
       </div>
     </div>
