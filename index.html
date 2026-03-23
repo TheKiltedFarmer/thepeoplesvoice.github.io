@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -24,8 +25,11 @@ input,textarea,select{font-family:'Lora',serif}
 <div id="root"><div style="min-height:100vh;background:#1a1a2e;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px"><div class="spin" style="border-color:#444;border-top-color:#f0c040"></div><div style="color:#f0c040;font-family:'Playfair Display',serif;font-size:20px">Loading The People's Voice...</div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
 <script>
 const {useState,useEffect,useRef,createElement:h,Fragment} = React;
 
@@ -104,6 +108,60 @@ const SEED_BILLS = [
     sponsor:"Michigan Legislature — Agriculture Committee",
     summary:"Proposed legislation that would exempt small-scale farmers earning under $50,000 annually from state licensing requirements when selling directly to consumers, and would explicitly legalize community food exchanges and gifting programs.",
     full_text:"Under this proposed legislation, a producer of agricultural products with gross annual revenues under $50,000 shall be exempt from licensing and inspection requirements when selling or gifting agricultural products directly to the end consumer at the point of production or at a farmers market. Community food gifting programs would be explicitly legalized. Note: This bill is in active development — verify current status with your state representative.",
+    votes_yes:0,votes_no:0,votes_abstain:0
+  },
+  {
+    id:"MI-HB-5529-2026",level:"state",jurisdiction:"State of Michigan",
+    title:"Michigan Zoning Reform — Minimum Lot Size Preemption (HB 5529-5532)",
+    status:"House Committee on Regulatory Reform — Active 2026",introduced:"Feb 2026",
+    sponsor:"Rep. Aragona (R), House Committee on Regulatory Reform",
+    summary:"A package of four bills that would prohibit local governments from requiring minimum lot sizes greater than 1,500 sq ft for new residential construction where public water and sewer are available. Currently state law allows minimums up to 12,000 sq ft. This would be one of the most significant zoning changes in Michigan history, directly affecting every township and village's ability to control local development.",
+    full_text:"House Bills 5529-5532 would pre-empt certain local zoning ordinances by prohibiting local units of government — including counties with zoning authority — from requiring minimum lot sizes greater than 1,500 square feet for new residential construction, provided the proposed dwelling has access to public water and sewer services. The Michigan Association of Counties has not yet taken a formal position. Testimony ongoing before the House Committee on Regulatory Reform as of February 2026. Source: Michigan Association of Counties Legislative Update, February 20, 2026.",
+    votes_yes:0,votes_no:0,votes_abstain:0
+  },
+  {
+    id:"MI-SB-2025-COTTAGE",level:"state",jurisdiction:"State of Michigan",
+    title:"Michigan Cottage Food Expansion Act",
+    status:"Signed into Law — 2025",introduced:"2025",
+    sponsor:"Rep. Gregory Alexander (R-Carsonville)",
+    summary:"Expands Michigan's cottage food law to allow home-based food producers to sell products online, by mail order, and through third-party delivery platforms. Also allows cottage food operations to register with MSU's Product Center for business support.",
+    full_text:"This legislation expands the Michigan Cottage Food Law to permit internet and mail-order sales and delivery through third-party food delivery platforms. Cottage food operations may also register with Michigan State University's Product Center. The bill passed with strong bipartisan support and was signed by Governor Whitmer in 2025. Source: Michigan Governor's Office press release, 2025; wzzm13.com.",
+    votes_yes:0,votes_no:0,votes_abstain:0
+  },
+  {
+    id:"MI-HB-4961-2025",level:"state",jurisdiction:"State of Michigan",
+    title:"Michigan Earned Sick Time Act — Expansion",
+    status:"Signed into Law — Effective Feb 21, 2025",introduced:"2025",
+    sponsor:"Michigan Legislature",
+    summary:"All Michigan workers now earn one hour of paid sick leave for every 30 hours worked. Employees at companies with 10+ employees can accrue up to 72 hours of paid leave annually. Smaller business employees accrue 40 hours paid plus 32 hours unpaid. The first expansion of sick leave rights since 2003.",
+    full_text:"The Michigan Earned Sick Time Act took effect February 21, 2025. Employees at larger businesses (10+ employees) may accrue at least 72 hours of paid sick leave annually. Employees at smaller businesses accrue a minimum of 40 hours paid and 32 hours unpaid sick leave. Leave can be used for any reason related to physical or mental health. Source: Michigan Legislature; gandernewsroom.com, January 8, 2025.",
+    votes_yes:0,votes_no:0,votes_abstain:0
+  },
+  {
+    id:"FED-HR1-2025-SNAP",level:"federal",jurisdiction:"Federal — United States",
+    title:"H.R.1 — SNAP Work Requirements & Farm Program Changes",
+    status:"Signed into Law — 2025",introduced:"2025",
+    sponsor:"119th Congress — Republican Majority",
+    summary:"The federal reconciliation bill (HR-1) enacted stricter work requirements for SNAP (food stamps) recipients and updated commodity support programs for agricultural producers. SNAP recipients aged 18-55 without dependents must now meet expanded work requirements. Affects an estimated 215,000+ Michigan residents who rely on food assistance.",
+    full_text:"H.R.1 (P.L.119-21), enacted in 2025, included several provisions traditionally addressed through Farm Bill reauthorization: updated and expanded commodity support programs for agricultural producers, and enacted reforms to the Supplemental Nutrition Assistance Program (SNAP) including stricter work requirements. The bill expanded work requirements for able-bodied adults without dependents. Source: National Association of Counties; Congress.gov P.L.119-21.",
+    votes_yes:0,votes_no:0,votes_abstain:0
+  },
+  {
+    id:"FED-FARMBILL-2026",level:"federal",jurisdiction:"Federal — United States",
+    title:"Farm, Food, and National Security Act of 2026 (2026 Farm Bill)",
+    status:"Passed House Agriculture Committee — March 5, 2026",introduced:"Feb 2026",
+    sponsor:"House Agriculture Committee (Bipartisan — 34-17 vote)",
+    summary:"The 2026 Farm Bill reauthorizes federal agricultural, nutrition, rural development, and conservation programs. Key provisions include $350M/year for rural broadband, reauthorization of rural water and wastewater infrastructure grants, rural childcare initiatives, and expanded SNAP employment training. The bill restricts USDA from funding solar on prime farmland. Senate version timeline unclear.",
+    full_text:"The Farm, Food, and National Security Act of 2026 (H.R. 7567) passed the House Agriculture Committee on March 5, 2026 with a bipartisan 34-17 vote after a 20+ hour markup. The 2018 Farm Bill is currently extended through September 30, 2026. Key rural provisions: $350M/year for rural broadband; reauthorizes Water, Waste Disposal, and Wastewater Facility Grants at $15M/year; new rural childcare initiative; expands Commodity Supplemental Food Program for rural communities. Source: National Association of Counties, February 2026; NADO.org.",
+    votes_yes:0,votes_no:0,votes_abstain:0
+  },
+  {
+    id:"FED-HR7530-2026",level:"federal",jurisdiction:"Federal — United States",
+    title:"Assistance for Rural Water Systems Act of 2026 (H.R. 7530)",
+    status:"Introduced in House — February 12, 2026",introduced:"Feb 12, 2026",
+    sponsor:"Rep. Davis (R-NC) and Rep. Johnson (R-SD)",
+    summary:"Would provide additional federal assistance to rural water, wastewater, and waste disposal systems under the Consolidated Farm and Rural Development Act. Directly relevant to communities like Concord and other rural Jackson County townships that rely on aging water infrastructure.",
+    full_text:"H.R. 7530, introduced February 12, 2026, amends the Consolidated Farm and Rural Development Act to provide additional assistance to rural water, wastewater, and waste disposal systems. Referred to the House Committee on Agriculture. Source: Congress.gov, 119th Congress, H.R. 7530.",
     votes_yes:0,votes_no:0,votes_abstain:0
   },
 ];
@@ -1096,7 +1154,32 @@ function App() {
 
   const repInfo=repLevel(rep);
   const canPropose=rep>=REP_TO_PROPOSE;
-  const filteredBills=billFilter==='all'?bills:bills.filter(b=>b.level===billFilter);
+
+  // ZIP search filtering
+  const [zipSearch,setZipSearch]=useState('');
+  const searchedCommunity = ZIP_COMMUNITY[zipSearch.trim()] || null;
+
+  const getFilteredBills = () => {
+    let filtered = bills;
+    // If searching by ZIP, show bills relevant to that community + state + federal
+    if(zipSearch.trim().length===5 && searchedCommunity) {
+      const communityLower = searchedCommunity.toLowerCase();
+      filtered = bills.filter(b => {
+        if(b.level==='federal'||b.level==='state') return true;
+        const jurisLower = (b.jurisdiction||'').toLowerCase();
+        // Match by jurisdiction name containing community name
+        if(jurisLower.includes(communityLower)) return true;
+        // Match by level filter
+        if(billFilter!=='all' && b.level===billFilter) return true;
+        return false;
+      });
+    } else if(billFilter!=='all') {
+      filtered = bills.filter(b=>b.level===billFilter);
+    }
+    return filtered;
+  };
+
+  const filteredBills = getFilteredBills();
   const totalVotes=bills.reduce((a,b)=>a+b.votes_yes+b.votes_no+b.votes_abstain,0);
   const displayName=profile?.display_name||user.email.split('@')[0];
 
@@ -1152,14 +1235,39 @@ function App() {
 
       // Bills tab
       mainTab==='bills'&&h(Fragment,null,
+
+        // ZIP Search bar
+        h('div',{style:{background:'#1a1a2e',borderRadius:10,padding:'14px 16px',marginBottom:14}},
+          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:'#f0c040',marginBottom:8}},
+            "🔍 Search Bills by ZIP Code"
+          ),
+          h('div',{style:{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}},
+            h('input',{
+              value:zipSearch,
+              onChange:e=>{setZipSearch(e.target.value);if(e.target.value.trim().length===5)setBillFilter('all');},
+              placeholder:'Enter any ZIP code (e.g. 49237, 49230, 49240...)',
+              maxLength:5,
+              style:{flex:1,minWidth:180,border:'1px solid #444',borderRadius:6,padding:'10px 13px',fontSize:14,background:'#23233a',color:'#fff',boxSizing:'border-box'}
+            }),
+            zipSearch.trim()&&h('button',{onClick:()=>setZipSearch(''),style:{background:'transparent',border:'1px solid #556677',color:'#8899aa',borderRadius:5,padding:'9px 12px',fontSize:12}},"✕ Clear")
+          ),
+          searchedCommunity&&h('div',{style:{marginTop:8,fontSize:13,color:'#6bcf8a',fontFamily:"'Lora',serif"}},
+            "📍 Showing bills for: ",h('strong',null,searchedCommunity)," + all State & Federal bills"
+          ),
+          zipSearch.trim().length===5&&!searchedCommunity&&h('div',{style:{marginTop:8,fontSize:13,color:'#e74c3c',fontFamily:"'Lora',serif"}},
+            "ZIP code not found. Showing all bills."
+          )
+        ),
+
+        // Level filters
         h('div',{style:{display:'flex',gap:7,flexWrap:'wrap',marginBottom:14,alignItems:'center'}},
-          h('span',{style:{fontSize:12,color:'#aaa'}},"Filter:"),
-          [['all','All'],['village','🏘 Concord'],['city','🏙 Jackson'],['township','🌾 Township'],['state','🏛 State']].map(([v,l])=>
-            h('button',{key:v,onClick:()=>setBillFilter(v),style:{background:billFilter===v?'#1a1a2e':'#fff',color:billFilter===v?'#f0c040':'#555',border:'1px solid '+(billFilter===v?'#1a1a2e':'#ddd'),padding:'6px 12px',borderRadius:20,fontFamily:"'Playfair Display',serif",fontSize:12,fontWeight:billFilter===v?700:400}},l)
+          h('span',{style:{fontSize:12,color:'#aaa'}},"Level:"),
+          [['all','All'],['village','🏘 Village'],['city','🏙 City'],['township','🌾 Township'],['state','🏛 State'],['federal','🇺🇸 Federal']].map(([v,l])=>
+            h('button',{key:v,onClick:()=>{setBillFilter(v);setZipSearch('');},style:{background:billFilter===v&&!zipSearch?'#1a1a2e':'#fff',color:billFilter===v&&!zipSearch?'#f0c040':'#555',border:'1px solid '+(billFilter===v&&!zipSearch?'#1a1a2e':'#ddd'),padding:'6px 12px',borderRadius:20,fontFamily:"'Playfair Display',serif",fontSize:12,fontWeight:billFilter===v&&!zipSearch?700:400}},l)
           ),
           h('div',{style:{marginLeft:'auto',fontSize:12,color:'#aaa'}},filteredBills.length+" bill"+(filteredBills.length!==1?'s':''))
         ),
-        filteredBills.length===0&&h('div',{style:{textAlign:'center',padding:40,color:'#aaa',fontStyle:'italic'}},"Loading bills..."),
+        filteredBills.length===0&&h('div',{style:{textAlign:'center',padding:40,color:'#aaa',fontStyle:'italic'}},"No bills found for this filter."),
         filteredBills.map(bill=>h(BillCard,{key:bill.id,bill,user:{...user,reputation:rep},userVotes,onVoteCast:handleVoteCast,onRepGain:gainRep}))
       ),
 
@@ -1217,5 +1325,6 @@ function App() {
 // Mount
 ReactDOM.createRoot(document.getElementById('root')).render(h(App));
 </script>
+
 </body>
 </html>
