@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -25,11 +24,8 @@ input,textarea,select{font-family:'Lora',serif}
 <div id="root"><div style="min-height:100vh;background:#1a1a2e;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px"><div class="spin" style="border-color:#444;border-top-color:#f0c040"></div><div style="color:#f0c040;font-family:'Playfair Display',serif;font-size:20px">Loading The People's Voice...</div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-
 <script>
 const {useState,useEffect,useRef,createElement:h,Fragment} = React;
 
@@ -748,22 +744,49 @@ function AuthScreen({onAuth}) {
   const [email,setEmail]=useState('');
   const [pass,setPass]=useState('');
   const [name,setName]=useState('');
+  const [street,setStreet]=useState('');
+  const [city,setCity]=useState('');
+  const [state,setState]=useState('MI');
   const [zip,setZip]=useState('');
+  const [attested,setAttested]=useState(false);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(false);
+  const [step,setStep]=useState(1); // 1=account info, 2=address, 3=attestation
 
   const community=ZIP_COMMUNITY[zip.trim()]||null;
   const zipValid=VALID_ZIPS.includes(zip.trim());
 
+  const nextStep=()=>{
+    if(step===1){
+      if(!email.trim()){setError('Email is required.');return;}
+      if(pass.length<6){setError('Password must be at least 6 characters.');return;}
+      setError('');setStep(2);
+    } else if(step===2){
+      if(!street.trim()){setError('Street address is required.');return;}
+      if(!city.trim()){setError('City is required.');return;}
+      if(!zip.trim()){setError('ZIP code is required.');return;}
+      if(zip.trim().length===5&&!zipValid){setError('ZIP code not recognized. Please check it and try again.');return;}
+      setError('');setStep(3);
+    }
+  };
+
   const handleSignup=async()=>{
-    if(!zipValid){setError("Please enter a valid ZIP code for your area. Jackson County examples: 49237 (Concord), 49201-49203 (Jackson), 49230 (Brooklyn), 49240 (Grass Lake), 49283 (Spring Arbor).");return;}
-    if(pass.length<6){setError("Password must be at least 6 characters.");return;}
+    if(!attested){setError('Please confirm the attestation to continue.');return;}
     setLoading(true);setError('');
-    const {data,error:err}=await sb.auth.signUp({email,password:pass,options:{data:{display_name:name||email.split('@')[0],zip}}});
+    const fullAddress=street.trim()+', '+city.trim()+', '+state+' '+zip.trim();
+    const displayName=name||email.split('@')[0];
+    const {data,error:err}=await sb.auth.signUp({
+      email,password:pass,
+      options:{data:{display_name:displayName,zip,street_address:street,city,state_abbr:state}}
+    });
     if(err){setError(err.message);setLoading(false);return;}
     if(data.user){
-      await sb.from('profiles').upsert({id:data.user.id,email,display_name:name||email.split('@')[0],zip,verified_method:'email'});
-      onAuth(data.user,{display_name:name||email.split('@')[0],zip,reputation:0});
+      await sb.from('profiles').upsert({
+        id:data.user.id,email,display_name:displayName,
+        zip,street_address:street,city,state_abbr:state,
+        full_address:fullAddress,verified_method:'self-attested',reputation:0
+      });
+      onAuth(data.user,{display_name:displayName,zip,street_address:street,city,state_abbr:state,full_address:fullAddress,reputation:0});
     }
     setLoading(false);
   };
@@ -779,49 +802,138 @@ function AuthScreen({onAuth}) {
     setLoading(false);
   };
 
-  return h('div',{style:{minHeight:'100vh',background:'#1a1a2e',display:'flex',alignItems:'center',justifyContent:'center',padding:16}},
-    h('div',{style:{background:'#fff',borderRadius:14,padding:32,width:420,maxWidth:'100%',boxShadow:'0 30px 80px rgba(0,0,0,.5)'}},
+  const inp=(val,setter,placeholder,type='text',extra={})=>
+    h('input',{value:val,onChange:e=>setter(e.target.value),placeholder,type,
+      style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',marginBottom:10,fontSize:14,boxSizing:'border-box',...(extra.style||{})},...extra});
+
+  return h('div',{style:{minHeight:'100vh',background:'#1a1a2e',display:'flex',alignItems:'center',justifyContent:'center',padding:16,overflowY:'auto'}},
+    h('div',{style:{background:'#fff',borderRadius:14,padding:28,width:440,maxWidth:'100%',boxShadow:'0 30px 80px rgba(0,0,0,.5)',margin:'20px auto'}},
+
+      // Header
       h('div',{style:{textAlign:'center',marginBottom:20}},
-        h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:30,color:'#1a1a2e',letterSpacing:-1,lineHeight:1.1}},"The People's",h('br'),"Voice"),
-        h('div',{style:{marginTop:10,fontSize:11,color:'#5b3a8c',background:'#f0ebf8',padding:'4px 14px',borderRadius:20,display:'inline-block',fontWeight:700,letterSpacing:1,textTransform:'uppercase'}},"Vote · Build · Change"),
-        h('div',{style:{marginTop:14,background:'#f8f6f0',borderRadius:10,padding:'14px 14px',textAlign:'left'}},
-          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:'#1a1a2e',marginBottom:10}},"What is The People's Voice?"),
+        h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:28,color:'#1a1a2e',letterSpacing:-1,lineHeight:1.1}},"The People's",h('br'),"Voice"),
+        h('div',{style:{marginTop:8,fontSize:11,color:'#5b3a8c',background:'#f0ebf8',padding:'4px 14px',borderRadius:20,display:'inline-block',fontWeight:700,letterSpacing:1,textTransform:'uppercase'}},"Vote · Build · Change"),
+        mode==='signup'&&h('div',{style:{marginTop:12,background:'#f8f6f0',borderRadius:10,padding:'12px 14px',textAlign:'left'}},
           [
-            ["🗳","Vote on real local, state & federal bills — and see how your representatives voted vs. your community"],
-            ["📨","Email your elected officials directly from any bill, with your vote and the community data attached"],
-            ["🌱","Propose community projects, pledge your resources, and forward ideas directly to officials"],
-            ["💬","Discuss issues with verified neighbors in your community"],
-            ["⚖️","Get plain-language AI breakdowns of legislation — factual, balanced, no spin"],
-            ["📣","Share your vote to social media when you choose — anonymously or publicly"],
-          ].map(([icon,text])=>h('div',{key:icon,style:{display:'flex',gap:8,alignItems:'flex-start',marginBottom:7}},
-            h('span',{style:{fontSize:15,flexShrink:0,marginTop:1}},icon),
-            h('span',{style:{fontFamily:"'Lora',serif",fontSize:12,color:'#555',lineHeight:1.6}},text)
+            ["🗳","Vote on real local, state & federal bills"],
+            ["📨","Email your elected officials directly from any bill"],
+            ["🌱","Propose community projects and forward ideas to officials"],
+            ["⚖️","Get plain-language AI breakdowns — factual, no spin"],
+          ].map(([icon,text])=>h('div',{key:icon,style:{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6}},
+            h('span',{style:{fontSize:14,flexShrink:0}},icon),
+            h('span',{style:{fontFamily:"'Lora',serif",fontSize:12,color:'#555',lineHeight:1.5}},text)
           )),
-          h('div',{style:{marginTop:10,paddingTop:10,borderTop:'1px solid #e5dece',fontSize:11,color:'#aaa',lineHeight:1.6}},
-            "⚖️ Nonpartisan · Independent · Not affiliated with any government, party, or elected official.",h('br'),
+          h('div',{style:{marginTop:8,paddingTop:8,borderTop:'1px solid #e5dece',fontSize:11,color:'#aaa',lineHeight:1.6}},
+            "⚖️ Nonpartisan · Independent · Not affiliated with any government or party.",h('br'),
             h('strong',null,"Your votes are unofficial — but your voice is real.")
           )
         )
       ),
-      h('div',{style:{display:'flex',marginBottom:16,border:'1px solid #eee',borderRadius:8,overflow:'hidden'}},
+
+      // Mode toggle
+      h('div',{style:{display:'flex',marginBottom:20,border:'1px solid #eee',borderRadius:8,overflow:'hidden'}},
         [['login','Sign In'],['signup','Create Account']].map(([m,l])=>
-          h('button',{key:m,onClick:()=>{setMode(m);setError('');},style:{flex:1,padding:'10px',background:mode===m?'#1a1a2e':'#fff',color:mode===m?'#f0c040':'#555',border:'none',fontFamily:"'Playfair Display',serif",fontWeight:mode===m?700:400,fontSize:14}},l)
+          h('button',{key:m,onClick:()=>{setMode(m);setError('');setStep(1);},
+            style:{flex:1,padding:'10px',background:mode===m?'#1a1a2e':'#fff',color:mode===m?'#f0c040':'#555',border:'none',fontFamily:"'Playfair Display',serif",fontWeight:mode===m?700:400,fontSize:14}},l)
         )
       ),
-      mode==='signup'&&h('input',{value:name,onChange:e=>setName(e.target.value),placeholder:'Your name (optional)',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',marginBottom:10,fontSize:14,boxSizing:'border-box'}}),
-      h('input',{value:email,onChange:e=>setEmail(e.target.value),placeholder:'Email address',type:'email',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',marginBottom:10,fontSize:14,boxSizing:'border-box'}}),
-      h('input',{value:pass,onChange:e=>setPass(e.target.value),placeholder:mode==='signup'?'Password (min 6 characters)':'Password',type:'password',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',marginBottom:10,fontSize:14,boxSizing:'border-box'}}),
-      mode==='signup'&&h(Fragment,null,
-        h('input',{value:zip,onChange:e=>setZip(e.target.value),placeholder:'Your ZIP code',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',marginBottom:4,fontSize:14,boxSizing:'border-box'}}),
-        community&&h('div',{style:{fontSize:12,color:'#1a6b3c',marginBottom:8,paddingLeft:4}},"✓ "+community+" — welcome!"),
-        zip.trim().length===5&&!zipValid&&h('div',{style:{fontSize:12,color:'#c0392b',marginBottom:8,paddingLeft:4}},"ZIP not recognized. Try a nearby ZIP or contact us."),
-        (!zip.trim()||zip.trim().length!==5)&&h('div',{style:{marginBottom:8}})
+
+      // ── LOGIN FORM ──
+      mode==='login'&&h(Fragment,null,
+        inp(email,setEmail,'Email address','email'),
+        inp(pass,setPass,'Password','password'),
+        error&&h('div',{style:{background:'#fdf0ef',border:'1px solid #f0c0b8',borderRadius:6,padding:'10px 12px',marginBottom:12,fontSize:13,color:'#c0392b'}},error),
+        h('button',{onClick:handleLogin,disabled:loading,style:{width:'100%',background:loading?'#ccc':'#1a1a2e',color:'#f0c040',border:'none',padding:'13px',borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15}},
+          loading?h(Spinner):'Sign In →'
+        )
       ),
-      error&&h('div',{style:{background:'#fdf0ef',border:'1px solid #f0c0b8',borderRadius:6,padding:'10px 12px',marginBottom:12,fontSize:13,color:'#c0392b'}},error),
-      h('button',{onClick:mode==='signup'?handleSignup:handleLogin,disabled:loading,style:{width:'100%',background:loading?'#ccc':'#1a1a2e',color:'#f0c040',border:'none',padding:'13px',borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15}},
-        loading?h(Spinner):mode==='signup'?'Create My Account →':'Sign In →'
+
+      // ── SIGNUP FORM — STEP INDICATOR ──
+      mode==='signup'&&h('div',{style:{display:'flex',gap:0,marginBottom:20}},
+        [['1','Account'],['2','Address'],['3','Confirm']].map(([n,l],i)=>h('div',{key:n,style:{flex:1,textAlign:'center'}},
+          h('div',{style:{width:28,height:28,borderRadius:'50%',background:step>=parseInt(n)?'#1a1a2e':'#eee',color:step>=parseInt(n)?'#f0c040':'#aaa',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,margin:'0 auto 4px'}},n),
+          h('div',{style:{fontSize:11,color:step>=parseInt(n)?'#1a1a2e':'#aaa',fontFamily:"'Lora',serif"}},l),
+          i<2&&h('div',{style:{position:'relative',top:-22,left:'50%',width:'100%',height:2,background:step>parseInt(n)?'#1a1a2e':'#eee',zIndex:0}})
+        ))
       ),
-      mode==='signup'&&h('div',{style:{marginTop:10,fontSize:11,color:'#aaa',textAlign:'center',lineHeight:1.6}},"By creating an account you agree to use this platform for legitimate civic engagement.")
+
+      // ── SIGNUP STEP 1 — ACCOUNT INFO ──
+      mode==='signup'&&step===1&&h(Fragment,null,
+        inp(name,setName,'Your full name (optional)'),
+        inp(email,setEmail,'Email address *','email'),
+        inp(pass,setPass,'Password (min 6 characters) *','password'),
+        error&&h('div',{style:{background:'#fdf0ef',border:'1px solid #f0c0b8',borderRadius:6,padding:'10px 12px',marginBottom:12,fontSize:13,color:'#c0392b'}},error),
+        h('button',{onClick:nextStep,style:{width:'100%',background:'#1a1a2e',color:'#f0c040',border:'none',padding:'13px',borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15}},
+          'Next: Enter Your Address →'
+        )
+      ),
+
+      // ── SIGNUP STEP 2 — ADDRESS ──
+      mode==='signup'&&step===2&&h(Fragment,null,
+        h('div',{style:{background:'#e8f2fa',border:'1px solid #c8d8f0',borderRadius:8,padding:'12px 14px',marginBottom:16,fontSize:13,fontFamily:"'Lora',serif",color:'#1a5c8a',lineHeight:1.7}},
+          "🏠 ",h('strong',null,"Why we need your address:")," Your address confirms you are a real resident of your community. This is the foundation of honest community voting. You will be asked to formally attest to its accuracy on the next screen."
+        ),
+        inp(street,setStreet,'Street address * (e.g. 123 Main Street)'),
+        inp(city,setCity,'City or Township *'),
+        h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}},
+          h('select',{value:state,onChange:e=>setState(e.target.value),style:{border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',fontSize:14,boxSizing:'border-box'}},
+            ['MI','IN','OH','WI','IL','MN','IA','MO','KY','PA','NY','FL','TX','CA','Other'].map(s=>h('option',{key:s,value:s},s))
+          ),
+          h('input',{value:zip,onChange:e=>setZip(e.target.value),placeholder:'ZIP code *',maxLength:5,
+            style:{border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',fontSize:14,boxSizing:'border-box'}})
+        ),
+        community&&h('div',{style:{fontSize:12,color:'#1a6b3c',marginBottom:8,paddingLeft:4}},"✓ "+community+" — welcome to The People's Voice!"),
+        zip.trim().length===5&&!zipValid&&h('div',{style:{fontSize:12,color:'#e07000',marginBottom:8,paddingLeft:4}},"⚠️ ZIP not in our current coverage area. You can still register — your address will be on file."),
+        error&&h('div',{style:{background:'#fdf0ef',border:'1px solid #f0c0b8',borderRadius:6,padding:'10px 12px',marginBottom:12,fontSize:13,color:'#c0392b'}},error),
+        h('div',{style:{display:'flex',gap:10}},
+          h('button',{onClick:()=>{setStep(1);setError('');},style:{background:'transparent',border:'1px solid #ddd',color:'#aaa',padding:'12px 16px',borderRadius:7,fontSize:14}},"← Back"),
+          h('button',{onClick:nextStep,style:{flex:1,background:'#1a1a2e',color:'#f0c040',border:'none',padding:'13px',borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15}},'Next: Confirm →')
+        )
+      ),
+
+      // ── SIGNUP STEP 3 — ATTESTATION ──
+      mode==='signup'&&step===3&&h(Fragment,null,
+        h('div',{style:{background:'#faf8f3',border:'2px solid #1a1a2e',borderRadius:10,padding:18,marginBottom:16}},
+          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:16,color:'#1a1a2e',marginBottom:12}},"📋 Review Your Information"),
+          h('div',{style:{fontFamily:"'Lora',serif",fontSize:13,color:'#444',lineHeight:1.8}},
+            h('div',null,h('strong',null,"Name: "),name||'(not provided)'),
+            h('div',null,h('strong',null,"Email: "),email),
+            h('div',null,h('strong',null,"Address: "),street+', '+city+', '+state+' '+zip),
+            community&&h('div',null,h('strong',null,"Community: "),community)
+          )
+        ),
+        h('div',{style:{background:'#fff8e7',border:'2px solid #f0c040',borderRadius:10,padding:18,marginBottom:16}},
+          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15,color:'#8a6000',marginBottom:10}},"⚖️ Resident Attestation"),
+          h('div',{style:{fontFamily:"'Lora',serif",fontSize:13,color:'#555',lineHeight:1.8,marginBottom:14}},
+            "By checking the box below, I ",h('strong',null,"solemnly attest")," that:",
+            h('ul',{style:{marginTop:8,marginLeft:16,display:'flex',flexDirection:'column',gap:6}},
+              h('li',null,"The address I provided is my genuine current residential address"),
+              h('li',null,"I am a real person, not a bot or automated system"),
+              h('li',null,"I will cast only one vote per bill on this platform"),
+              h('li',null,"I understand my votes are unofficial civic engagement, not legally binding"),
+              h('li',null,"I will use this platform honestly and in good faith for community benefit")
+            )
+          ),
+          h('label',{style:{display:'flex',alignItems:'flex-start',gap:12,cursor:'pointer'}},
+            h('input',{type:'checkbox',checked:attested,onChange:e=>setAttested(e.target.checked),
+              style:{width:20,height:20,flexShrink:0,marginTop:2,cursor:'pointer'}}),
+            h('span',{style:{fontFamily:"'Lora',serif",fontSize:13,color:'#1a1a2e',fontWeight:600,lineHeight:1.6}},
+              "I confirm that all information I provided is accurate and true. I agree to use The People's Voice honestly and for legitimate civic engagement."
+            )
+          )
+        ),
+        error&&h('div',{style:{background:'#fdf0ef',border:'1px solid #f0c0b8',borderRadius:6,padding:'10px 12px',marginBottom:12,fontSize:13,color:'#c0392b'}},error),
+        h('div',{style:{display:'flex',gap:10}},
+          h('button',{onClick:()=>{setStep(2);setError('');},style:{background:'transparent',border:'1px solid #ddd',color:'#aaa',padding:'12px 16px',borderRadius:7,fontSize:14}},"← Back"),
+          h('button',{onClick:handleSignup,disabled:loading||!attested,style:{flex:1,background:loading||!attested?'#ccc':'#1a6b3c',color:'#fff',border:'none',padding:'13px',borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15}},
+            loading?h(Spinner):'Create My Account ✓'
+          )
+        ),
+        h('div',{style:{marginTop:12,fontSize:11,color:'#aaa',textAlign:'center',lineHeight:1.6}},
+          "Your address is stored securely and used only to verify community residency.",h('br'),
+          "Future identity verification options will be available to upgrade your account."
+        )
+      )
     )
   );
 }
@@ -1209,7 +1321,11 @@ function App() {
           ),
           h('div',{style:{textAlign:'right'}},
             h('div',{style:{color:'#fff',fontSize:12,fontFamily:"'Playfair Display',serif"}},displayName),
-            h('div',{style:{color:'#f0c040',fontSize:10}},"✓ Verified · ZIP "+(profile?.zip||'')),
+            h('div',{style:{color:'#f0c040',fontSize:10}},
+              profile?.street_address
+                ? "📍 Self-Attested · "+profile.zip
+                : "✓ Verified · ZIP "+(profile?.zip||'')
+            ),
             h('button',{onClick:handleSignOut,style:{background:'transparent',border:'none',color:'#8899aa',fontSize:11,cursor:'pointer',marginTop:2,fontFamily:"'Lora',serif'"}},"\ud83d\udeaa Sign out")
           )
         )
@@ -1325,6 +1441,5 @@ function App() {
 // Mount
 ReactDOM.createRoot(document.getElementById('root')).render(h(App));
 </script>
-
 </body>
 </html>
