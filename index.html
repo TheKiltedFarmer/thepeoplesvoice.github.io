@@ -792,14 +792,65 @@ function AdminPanel({bills,setBills,onToast}) {
   const EMPTY = {id:'',level:'city',jurisdiction:'City of Jackson',title:'',status:'',introduced:'',sponsor:'',summary:'',full_text:'',votes_yes:0,votes_no:0,votes_abstain:0};
   const [form,setForm]=useState(EMPTY);
   const set = k => e => setForm(f=>({...f,[k]:e.target.value}));
+  const [sourceUrl,setSourceUrl]=useState('');
+  const [fetching,setFetching]=useState(false);
+  const [fetchMsg,setFetchMsg]=useState('');
+
+  const fetchFromUrl=async()=>{
+    if(!sourceUrl.trim()){setFetchMsg('Please enter a URL first.');return;}
+    setFetching(true);setFetchMsg('Fetching page...');
+    try{
+      // Use a CORS proxy to fetch the government page
+      const proxy='https://api.allorigins.win/get?url='+encodeURIComponent(sourceUrl);
+      const res=await fetch(proxy);
+      const json=await res.json();
+      const raw=json.contents||'';
+      // Strip HTML tags to get readable text
+      const text=raw.replace(/<style[^>]*>[\s\S]*?<\/style>/gi,'')
+                    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi,'')
+                    .replace(/<[^>]+>/g,' ')
+                    .replace(/\s+/g,' ')
+                    .trim()
+                    .slice(0,6000);
+      if(!text||text.length<100){setFetchMsg('Could not read that page. Try pasting the text manually.');setFetching(false);return;}
+      setFetchMsg('Analyzing with AI...');
+      const aiRes=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',max_tokens:1000,
+          system:'You are a civic data extractor. Extract bill/proposal information from government website text and return ONLY valid JSON with no markdown. If you cannot find a specific field, use an empty string. Schema: {"title":"full bill or proposal title","level":"one of: village, city, township, county, state, federal","jurisdiction":"the specific government body e.g. City of Jackson or Village of Concord","status":"current status e.g. Council Vote Pending or Passed or Under Review","introduced":"date introduced if found","sponsor":"sponsor or author name if found","summary":"2-3 plain English sentences describing what this proposal does","full_text":"key text from the proposal plus the source URL"}',
+          messages:[{role:'user',content:'Extract bill information from this government page (source: '+sourceUrl+'):\n\n'+text}]
+        })
+      });
+      const aiJson=await aiRes.json();
+      const aiRaw=aiJson.content?.find(b=>b.type==='text')?.text||'{}';
+      const extracted=JSON.parse(aiRaw.replace(/```json|```/g,'').trim());
+      // Merge extracted data into form, append source URL to full_text
+      setForm(f=>({
+        ...f,
+        title:extracted.title||f.title,
+        level:extracted.level||f.level,
+        jurisdiction:extracted.jurisdiction||f.jurisdiction,
+        status:extracted.status||f.status,
+        introduced:extracted.introduced||f.introduced,
+        sponsor:extracted.sponsor||f.sponsor,
+        summary:extracted.summary||f.summary,
+        full_text:(extracted.full_text||f.full_text)+'\n\nSource: '+sourceUrl,
+      }));
+      setFetchMsg('✅ Fields filled in! Review everything below before publishing.');
+    }catch(e){
+      setFetchMsg('❌ Could not fetch that page. Try a different URL, or fill in the form manually.');
+    }
+    setFetching(false);
+  };
 
   const tryAuth=()=>{
     if(pw===ADMIN_PASSWORD){setAuthed(true);setPwErr('');}
     else setPwErr('Incorrect password. Try again.');
   };
 
-  const openAdd=()=>{setForm(EMPTY);setEditing(null);setView('add');};
-  const openEdit=(bill)=>{setForm({...bill});setEditing(bill.id);setView('edit');};
+  const openAdd=()=>{setForm(EMPTY);setEditing(null);setView('add');setSourceUrl('');setFetchMsg('');};
+  const openEdit=(bill)=>{setForm({...bill});setEditing(bill.id);setView('edit');setSourceUrl('');setFetchMsg('');};
 
   const genId=()=>{
     const slug=form.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20);
@@ -918,6 +969,31 @@ function AdminPanel({bills,setBills,onToast}) {
       ),
       h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:18,color:'#1a1a2e'}},
         editing?"Edit Bill":"Add New Bill"
+      )
+    ),
+
+    // URL Auto-fill section
+    h('div',{style:{background:'#1a1a2e',borderRadius:12,padding:20,marginBottom:20}},
+      h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:16,color:'#f0c040',marginBottom:4}},
+        "🔗 Import from a Government Website"
+      ),
+      h('div',{style:{fontFamily:"'Lora',serif",fontSize:13,color:'#8899aa',marginBottom:14,lineHeight:1.6}},
+        "Paste a link to any council agenda, meeting minutes, or ordinance page. The AI will read it and fill in the form automatically. You can edit anything before publishing."
+      ),
+      h('div',{style:{display:'flex',gap:10,flexWrap:'wrap'}},
+        h('input',{
+          value:sourceUrl,onChange:e=>setSourceUrl(e.target.value),
+          placeholder:'e.g. https://villageofconcord.com/agenda or https://cityofjackson.org/...',
+          onKeyDown:e=>e.key==='Enter'&&fetchFromUrl(),
+          style:{flex:1,minWidth:200,border:'1px solid #444',borderRadius:6,padding:'10px 13px',fontSize:13,background:'#23233a',color:'#fff',boxSizing:'border-box'}
+        }),
+        h('button',{onClick:fetchFromUrl,disabled:fetching,style:{background:fetching?'#555':'#f0c040',color:'#1a1a2e',border:'none',padding:'10px 20px',borderRadius:6,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:14,whiteSpace:'nowrap'}},
+          fetching?'Working...':'Auto-Fill →'
+        )
+      ),
+      fetchMsg&&h('div',{style:{marginTop:10,fontSize:13,fontFamily:"'Lora',serif",color:fetchMsg.startsWith('✅')?'#6bcf8a':fetchMsg.startsWith('❌')?'#e74c3c':'#f0c040',lineHeight:1.6}},fetchMsg),
+      h('div',{style:{marginTop:12,fontSize:11,color:'#556677',lineHeight:1.7}},
+        "💡 Works best with: Village of Concord (villageofconcord.com) · City of Jackson (cityofjackson.org) · Jackson County (co.jackson.mi.us) · Michigan Legislature (legislature.mi.gov) · Any public government meeting page"
       )
     ),
 
