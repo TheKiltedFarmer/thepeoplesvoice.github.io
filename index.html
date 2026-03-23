@@ -1,202 +1,358 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>The People's Voice</title>
-<meta name="description" content="A free, independent civic platform. Vote on real bills. Build community projects. Hold your representatives accountable."/>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#f4f1ea;font-family:'Lora',serif;-webkit-text-size-adjust:100%}
-#root{min-height:100vh}
-button{cursor:pointer;font-family:inherit}
-a{color:inherit}
-input,textarea,select{font-family:'Lora',serif}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spin{width:24px;height:24px;border:3px solid #ddd;border-top-color:#1a1a2e;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
-::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-track{background:#f0ece4}
-::-webkit-scrollbar-thumb{background:#c0b89a;border-radius:3px}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The People's Voice — Jackson County, MI</title>
+  <meta name="description" content="Verified civic voting and community projects for Concord and Jackson, Michigan." />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f4f1ea; font-family: 'Lora', serif; }
+    #root { min-height: 100vh; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    button { cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+    button:active { transform: scale(0.98); }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f0ece4; }
+    ::-webkit-scrollbar-thumb { background: #c0b89a; border-radius: 3px; }
+  </style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:#1a1a2e;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px"><div class="spin" style="border-color:#444;border-top-color:#f0c040"></div><div style="color:#f0c040;font-family:'Playfair Display',serif;font-size:20px">Loading The People's Voice...</div></div></div>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
 
-<script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>
-const {useState,useEffect,useRef,createElement:h,Fragment} = React;
+// ─── Supabase Client ──────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://zhnilrohxoixsgmdyqiw.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpobmlscm9oeG9peHNnbWR5cWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzQ5MzIsImV4cCI6MjA4OTg1MDkzMn0._75UyJVi0CPIqDom253zhNQ7-Eqe6e1-FKTLt2NSFcE";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// ── Config ────────────────────────────────────────────────────────────────────
-const SUPA_URL = "https://zhnilrohxoixsgmdyqiw.supabase.co";
-const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpobmlscm9oeG9peHNnbWR5cWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzQ5MzIsImV4cCI6MjA4OTg1MDkzMn0._75UyJVi0CPIqDom253zhNQ7-Eqe6e1-FKTLt2NSFcE";
-const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
-const SITE_URL = "https://thekiltedfarmer.github.io";
+// ─── Constants ────────────────────────────────────────────────────────────────
 const REP_TO_PROPOSE = 50;
+// Complete Jackson County Michigan ZIP codes — all 26 (standard + PO Box)
+// Sources: USPS, US Census, hometownlocator.com (updated March 2026)
+const VALID_ZIPS = [
+  // City of Jackson
+  "49201","49202","49203","49204",
+  // Village of Concord / Concord Township
+  "49237",
+  // Brooklyn / Columbia Township
+  "49230",
+  // Clarklake / Columbia Township
+  "49234",
+  // Grass Lake / Grass Lake Township
+  "49240",
+  // Hanover / Hanover Township
+  "49241",
+  // Horton / Hanover Township
+  "49246",
+  // Michigan Center / Leoni Township
+  "49254",
+  // Munith / Waterloo Township
+  "49259",
+  // Napoleon / Napoleon Township
+  "49261",
+  // Norvell / Norvell Township
+  "49263",
+  // Parma / Parma Township
+  "49269",
+  // Pleasant Lake / Henrietta Township
+  "49272",
+  // Rives Junction / Rives Township
+  "49277",
+  // Spring Arbor / Spring Arbor Township
+  "49283",
+  // Springport / Springport Township
+  "49284",
+  // Summit Township / Jackson area
+  "49285",
+  // Albion area (extends into Jackson County)
+  "49224",
+  // Cement City / Columbia Township
+  "49233",
+  // Leslie area (extends into Jackson County)
+  "49251",
+  // Onondaga area (extends into Jackson County)
+  "49264",
+  // Eaton Rapids area (extends into Jackson County)
+  "48827",
+  // Stockbridge area (extends into Jackson County)
+  "49285",
+  // Napoleon PO Box
+  "49261",
+];
 
-// ── ZIP Codes ─────────────────────────────────────────────────────────────────
+// ZIP to community name map — shown to users on signup confirmation
 const ZIP_COMMUNITY = {
-  "49201":"Jackson","49202":"Jackson","49203":"Jackson","49204":"Jackson",
+  "49201":"Jackson","49202":"Jackson","49203":"Jackson","49204":"Jackson (PO Box)",
   "49237":"Concord","49230":"Brooklyn","49234":"Clarklake","49240":"Grass Lake",
   "49241":"Hanover","49246":"Horton","49254":"Michigan Center","49259":"Munith",
-  "49261":"Napoleon","49263":"Norvell","49269":"Parma","49272":"Pleasant Lake",
-  "49277":"Rives Junction","49283":"Spring Arbor","49284":"Springport",
-  "49285":"Summit Township","49224":"Albion area","49233":"Cement City",
-  "49251":"Leslie area","49264":"Onondaga area","48827":"Eaton Rapids area",
+  "49261":"Napoleon","49263":"Norvell (PO Box)","49269":"Parma","49272":"Pleasant Lake",
+  "49277":"Rives Junction","49283":"Spring Arbor","49284":"Springport","49285":"Summit Township",
+  "49224":"Albion area","49233":"Cement City","49251":"Leslie area","49264":"Onondaga area",
+  "48827":"Eaton Rapids area",
 };
-const VALID_ZIPS = Object.keys(ZIP_COMMUNITY);
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const repLevel = (pts) => {
+  if (pts >= 100) return { label:"Community Pillar", icon:"🌳", color:"#1a6b3c" };
+  if (pts >= 50)  return { label:"Active Neighbor",  icon:"🤝", color:"#1a5c8a" };
+  if (pts >= 20)  return { label:"Engaged Resident", icon:"📣", color:"#5b3a8c" };
+  return           { label:"New Resident",            icon:"🌱", color:"#888"    };
+};
+
 const pct = (v,t) => t===0?0:Math.round((v/t)*100);
-const repLevel = pts => pts>=100?{label:"Community Pillar",icon:"🌳",color:"#1a6b3c"}:pts>=50?{label:"Active Neighbor",icon:"🤝",color:"#1a5c8a"}:pts>=20?{label:"Engaged Resident",icon:"📣",color:"#5b3a8c"}:{label:"New Resident",icon:"🌱",color:"#888"};
-const s = (styles) => Object.assign({},styles); // passthrough for readability
 
 const LEVEL_META = {
-  village:{label:"Village",color:"#5b3a8c",bg:"#f0ebf8",icon:"🏘"},
-  city:{label:"City",color:"#1a5c8a",bg:"#e8f2fa",icon:"🏙"},
-  township:{label:"Township",color:"#1a6b3c",bg:"#e8f5ee",icon:"🌾"},
-  state:{label:"State",color:"#c0392b",bg:"#fdf0ef",icon:"🏛"},
-  federal:{label:"Federal",color:"#7a5c00",bg:"#fdf6e3",icon:"🇺🇸"},
+  village:  {label:"Village",  color:"#5b3a8c", bg:"#f0ebf8", icon:"🏘"},
+  city:     {label:"City",     color:"#1a5c8a", bg:"#e8f2fa", icon:"🏙"},
+  township: {label:"Township", color:"#1a6b3c", bg:"#e8f5ee", icon:"🌾"},
+  state:    {label:"State",    color:"#c0392b", bg:"#fdf0ef", icon:"🏛"},
 };
-const CAT_COLORS = {"Food Security":"#1a6b3c","Urban Agriculture":"#5b8a00","Infrastructure":"#1a5c8a","Education":"#5b3a8c","Public Safety":"#c0392b","Environment":"#1a6b3c","Housing":"#8a4a00"};
+
+const CAT_COLORS = {
+  "Food Security":"#1a6b3c","Urban Agriculture":"#5b8a00","Infrastructure":"#1a5c8a",
+  "Education":"#5b3a8c","Public Safety":"#c0392b","Environment":"#1a6b3c","Housing":"#8a4a00",
+};
+
 const PLEDGE_META = {
-  labor:{icon:"⏱",label:"Time / Labor",color:"#1a5c8a",bg:"#e8f2fa"},
-  skills:{icon:"🛠",label:"Skills",color:"#5b3a8c",bg:"#f0ebf8"},
-  materials:{icon:"📦",label:"Materials",color:"#8a4a00",bg:"#fdf3e7"},
-  funding:{icon:"💰",label:"Funding",color:"#1a6b3c",bg:"#e8f5ee"},
+  labor:     {icon:"⏱",label:"Time / Labor",  color:"#1a5c8a",bg:"#e8f2fa"},
+  skills:    {icon:"🛠",label:"Skills",        color:"#5b3a8c",bg:"#f0ebf8"},
+  materials: {icon:"📦",label:"Materials",     color:"#8a4a00",bg:"#fdf3e7"},
+  funding:   {icon:"💰",label:"Funding",       color:"#1a6b3c",bg:"#e8f5ee"},
 };
 
-// ── Seed Data ─────────────────────────────────────────────────────────────────
+// ─── Seed Bills (inserted once on first load) ─────────────────────────────────
 const SEED_BILLS = [
-  {id:"CONCORD-2025-01",level:"village",jurisdiction:"Village of Concord",title:"First Street Sewer Line Replacement",status:"Council Vote Pending",introduced:"Jan 14, 2025",sponsor:"DPW Director J. Blossom",summary:"Authorizes up to $27,125 to contract Jesse Brigham Construction for emergency sewer line repairs on First Street following inspection revealing critical failures.",full_text:"The Village Council hereby authorizes DPW to contract Jesse Brigham Construction for sewer line repair on First Street, not to exceed $27,125, drawn from the Village infrastructure reserve.",votes_yes:87,votes_no:14,votes_abstain:6},
-  {id:"JACKSON-2025-03",level:"city",jurisdiction:"City of Jackson",title:"Urban Agriculture Expansion Ordinance",status:"Planning Commission Review",introduced:"Feb 3, 2025",sponsor:"Councilmember Angelita Gunn",summary:"Amends Jackson's zoning code to permit backyard chickens, beehives, and small-scale food production in all residential zones, and establishes a community Adopt-A-Hive program.",full_text:"Chapter 42 of the Jackson City Code is amended to permit up to 6 hens and 2 registered beehives on residential lots of 5,000 sq ft or more.",votes_yes:892,votes_no:203,votes_abstain:44},
-  {id:"SUMMIT-2025-01",level:"township",jurisdiction:"Summit Township",title:"Summit Township Road Millage — 0.5 Mill",status:"November 2025 Ballot",introduced:"Aug 2025",sponsor:"Summit Township Board",summary:"Proposes a 10-year, 0.5 mill property tax increase to fund local road improvements, estimated to raise $446,893 in its first year.",full_text:"Shall Summit Township impose 0.5 mill for ten years, 2025-2034, for improving and maintaining local roads?",votes_yes:1203,votes_no:876,votes_abstain:98},
-  {id:"MI-SB-2025-12",level:"state",jurisdiction:"State of Michigan",title:"Michigan Small Farm Direct Sale Exemption Act",status:"Senate Agriculture Committee",introduced:"Mar 1, 2025",sponsor:"Sen. Thomas Walcott (R-MI)",summary:"Exempts small-scale farmers under $50k revenue from state licensing when selling directly to consumers, and explicitly permits community food exchanges and gifting programs.",full_text:"A producer with gross annual revenues under $50,000 shall be exempt from licensing requirements when selling or gifting agricultural products directly to the end consumer.",votes_yes:2841,votes_no:1102,votes_abstain:203},
+  { id:"CONCORD-2025-01", level:"village", jurisdiction:"Village of Concord",
+    title:"First Street Sewer Line Replacement", status:"Council Vote Pending",
+    introduced:"Jan 14, 2025", sponsor:"DPW Director J. Blossom",
+    summary:"Authorizes up to $27,125 to contract Jesse Brigham Construction for emergency sewer line repairs on First Street following inspection revealing critical failures.",
+    full_text:"The Village Council hereby authorizes DPW to contract Jesse Brigham Construction for sewer line repair on First Street, not to exceed $27,125.",
+    votes_yes:87, votes_no:14, votes_abstain:6 },
+  { id:"JACKSON-2025-03", level:"city", jurisdiction:"City of Jackson",
+    title:"Urban Agriculture Expansion Ordinance", status:"Planning Commission Review",
+    introduced:"Feb 3, 2025", sponsor:"Councilmember Angelita Gunn",
+    summary:"Amends Jackson's zoning code to permit backyard chickens, beehives, and small-scale food production in all residential zones, and establishes a community Adopt-A-Hive program.",
+    full_text:"Chapter 42 of the Jackson City Code is amended to permit up to 6 hens and 2 registered beehives on residential lots of 5,000 sq ft or more.",
+    votes_yes:892, votes_no:203, votes_abstain:44 },
+  { id:"SUMMIT-2025-01", level:"township", jurisdiction:"Summit Township",
+    title:"Summit Township Road Millage — 0.5 Mill", status:"November 2025 Ballot",
+    introduced:"Aug 2025", sponsor:"Summit Township Board",
+    summary:"Proposes a 10-year, 0.5 mill property tax increase to fund local road improvements, estimated to raise $446,893 in its first year.",
+    full_text:"Shall Summit Township impose 0.5 mill for ten years, 2025-2034, for improving and maintaining local roads?",
+    votes_yes:1203, votes_no:876, votes_abstain:98 },
+  { id:"MI-SB-2025-12", level:"state", jurisdiction:"State of Michigan",
+    title:"Michigan Small Farm Direct Sale Exemption Act", status:"Senate Agriculture Committee",
+    introduced:"Mar 1, 2025", sponsor:"Sen. Thomas Walcott (R-MI)",
+    summary:"Exempts small-scale farmers under $50k revenue from state licensing when selling directly to consumers, and explicitly permits community food exchanges and gifting programs.",
+    full_text:"A producer with gross annual revenues under $50,000 shall be exempt from licensing requirements when selling or gifting agricultural products directly to the end consumer.",
+    votes_yes:2841, votes_no:1102, votes_abstain:203 },
 ];
 
-const ANALYSES = {
-  "CONCORD-2025-01":{plain:"The Village of Concord needs to replace a failing sewer line on First Street. The council is voting to authorize up to $27,125 to hire a local contractor. The money comes from the Village's existing infrastructure reserve — no new taxes needed.",benefits:["First Street residents dealing with odor and risk","The whole village — aging sewer infrastructure affects everyone","Jesse Brigham Construction — a local business gets the work"],concerns:["Village infrastructure reserve shrinks by up to $27,125","Only one contractor bid was presented — no competitive pricing"],fineprint:["No mention of warranty or follow-up inspection timeline"],local:"Directly affects Concord residents on First Street; typical for a small village managing aging 1900s-era infrastructure.",bottom:"A necessary emergency repair — the main concern is whether a single bid process got taxpayers the best price."},
-  "JACKSON-2025-03":{plain:"This ordinance would let Jackson homeowners legally keep backyard chickens and beehives, and establish a city-run Adopt-A-Hive program. Passing this would bring Jackson in line with dozens of Michigan cities that already allow urban agriculture.",benefits:["Homeowners who want to grow food and raise chickens or bees","Food-insecure residents who benefit from neighborhood food sharing","Pollinators and local ecosystems through expanded beekeeping","Community organizations like The Kilted Farmers"],concerns:["Neighbors concerned about noise, smell, or pest attraction","Residents with bee sting allergies near registered hives"],fineprint:["Roosters explicitly prohibited — only hens","Lots must be at least 5,000 sq ft","Enforcement mechanism not yet specified"],local:"Jackson has significant food insecurity; urban agriculture ordinances in comparable Michigan cities have measurably increased neighborhood food access.",bottom:"A well-structured ordinance with real community benefit — neighbor concerns deserve clear enforcement language before final passage."},
-  "SUMMIT-2025-01":{plain:"Summit Township wants to raise property taxes by 0.5 mill for 10 years for road repairs. For a home with a taxable value of $100,000, this costs about $50 per year. The money can only be used for roads.",benefits:["Drivers on deteriorating township roads","Emergency services needing reliable road access","Property owners whose home values are affected by road quality"],concerns:["Property owners paying higher taxes, especially fixed-income seniors","Renters whose landlords may pass the cost through in rent"],fineprint:["This is a 10-year commitment","No independent oversight board for spending specified"],local:"Summit Township roads connect Concord, Jackson, and surrounding rural communities — deteriorating roads affect the whole county.",bottom:"The roads genuinely need work, but voters are right to ask for a spending accountability plan before committing to a decade of increased taxes."},
-  "MI-SB-2025-12":{plain:"This Michigan bill would free small farmers making under $50,000 a year from state licensing when they sell or give food directly to customers. It would also explicitly make community food exchanges and gifting programs legal under state law.",benefits:["Small and micro farmers across Michigan","Community food organizations running gift economies and food exchanges","Consumers who get access to more local food","Rural communities where small farms are central"],concerns:["Michigan Dept of Agriculture loses oversight over a segment","Larger licensed farms competing with newly unlicensed small producers"],fineprint:["The $50,000 threshold is gross not net","Does not address liability if an unlicensed sale causes illness","Community gifting programs explicitly legalized — a win for contributionist food networks"],local:"Directly relevant to Jackson County's small farm community and organizations like The Kilted Farmers — removes legal ambiguity around community food sharing.",bottom:"A genuinely liberating bill for small farmers and gift economy food networks — the food safety tradeoff is manageable at this scale."},
+const BILL_ANALYSES = {
+  "CONCORD-2025-01": {
+    plain_english:"The Village of Concord needs to replace a failing sewer line on First Street. The council is voting to authorize up to $27,125 to hire a local contractor. The money comes from the Village's existing infrastructure reserve — no new taxes needed.",
+    who_benefits:["First Street residents who deal with odor and risk from failing pipes","The whole village — aging sewer infrastructure affects everyone's water safety","Jesse Brigham Construction — a local business gets the work"],
+    who_is_harmed:["Village infrastructure reserve shrinks by up to $27,125","Residents who feel competitive bidding should have been required"],
+    hidden_details:["Only one contractor bid was presented at the meeting","No mention of warranty or follow-up inspection timeline"],
+    local_impact:"Directly affects Concord residents on and near First Street; typical for a small village managing aging 1900s-era infrastructure.",
+    bottom_line:"A necessary emergency repair — the main concern is whether a single bid process got taxpayers the best price."
+  },
+  "JACKSON-2025-03": {
+    plain_english:"This ordinance would let Jackson homeowners legally keep backyard chickens and beehives, and establish a city-run Adopt-A-Hive program. Passing this would bring Jackson in line with dozens of Michigan cities that already allow urban agriculture.",
+    who_benefits:["Homeowners who want to grow food and raise chickens or bees","Food-insecure residents who benefit from neighborhood food sharing","Pollinators and local ecosystems through expanded beekeeping","Community organizations like The Kilted Farmers"],
+    who_is_harmed:["Neighbors concerned about noise, smell, or pest attraction","Residents with bee sting allergies living near registered hives"],
+    hidden_details:["Roosters are explicitly prohibited — only hens","Lots must be at least 5,000 sq ft","Enforcement mechanism not yet specified in current draft"],
+    local_impact:"Jackson has significant food insecurity; urban agriculture ordinances in comparable Michigan cities have measurably increased neighborhood food access.",
+    bottom_line:"A well-structured ordinance with real community benefit — neighbor concerns deserve clear enforcement language before final passage."
+  },
+  "SUMMIT-2025-01": {
+    plain_english:"Summit Township wants to raise property taxes by 0.5 mill for 10 years for road repairs. For a home with a taxable value of $100,000, this costs about $50 per year. The money can only be used for roads.",
+    who_benefits:["Drivers and cyclists on deteriorating township roads","Emergency services that need reliable road access","Property owners whose home values are affected by road quality"],
+    who_is_harmed:["Property owners paying higher taxes, especially fixed-income seniors","Renters whose landlords may pass the cost through in rent"],
+    hidden_details:["This is a 10-year commitment","No independent oversight board for spending is specified"],
+    local_impact:"Summit Township roads connect Concord, Jackson, and surrounding rural communities — deteriorating roads affect the whole county.",
+    bottom_line:"The roads genuinely need work, but voters are right to ask for a spending accountability plan before committing to a decade of increased taxes."
+  },
+  "MI-SB-2025-12": {
+    plain_english:"This Michigan bill would free small farmers making under $50,000 a year from state licensing when they sell or give food directly to customers. It would also explicitly make community food exchanges and gifting programs legal under state law.",
+    who_benefits:["Small and micro farmers across Michigan","Community food organizations running gift economies","Consumers who get access to more local food","Rural communities where small farms are central"],
+    who_is_harmed:["Michigan Dept of Agriculture loses oversight over a segment","Larger licensed farms competing with unlicensed small producers"],
+    hidden_details:["The $50,000 threshold is gross not net","Does not address liability if an unlicensed sale causes illness","Community gifting programs explicitly legalized — a win for contributionist food networks"],
+    local_impact:"Directly relevant to Jackson County's small farm community and organizations like The Kilted Farmers — removes legal ambiguity around community food sharing.",
+    bottom_line:"A genuinely liberating bill for small farmers and gift economy food networks — the food safety tradeoff is manageable at this scale."
+  }
 };
 
-const REPS = [
-  {id:"r1",name:"J. Bush",title:"Council Member",body:"Village of Concord Council",jurisdiction:"Village of Concord",party:"Nonpartisan",photo:"JB",contact:"clerk@villageofconcord.com",website:"villageofconcord.com",votes:{"CONCORD-2025-01":{vote:"yes",note:"Motioned to approve Jesse Brigham Construction contract."}}},
-  {id:"r2",name:"K. George",title:"Council Member",body:"Village of Concord Council",jurisdiction:"Village of Concord",party:"Nonpartisan",photo:"KG",contact:"clerk@villageofconcord.com",website:"villageofconcord.com",votes:{"CONCORD-2025-01":{vote:"yes",note:"Seconded motion to approve sewer contract."}}},
-  {id:"r3",name:"Angelita Gunn",title:"Ward 3 Council Member",body:"Jackson City Council",jurisdiction:"City of Jackson",party:"Nonpartisan",photo:"AG",contact:"citycouncil@cityofjackson.org",website:"cityofjackson.org",votes:{"JACKSON-2025-03":{vote:"yes",note:"Sponsored and voted yes on Urban Agriculture Ordinance."}}},
-  {id:"r4",name:"Shalanda Hunt",title:"Ward 5 Council Member",body:"Jackson City Council",jurisdiction:"City of Jackson",party:"Nonpartisan",photo:"SH",contact:"citycouncil@cityofjackson.org",website:"cityofjackson.org",votes:{"JACKSON-2025-03":{vote:"yes",note:"Voted in favor of Urban Agriculture Ordinance."}}},
-  {id:"r5",name:"Sen. Thomas Walcott",title:"State Senator",body:"Michigan Senate",jurisdiction:"State of Michigan",party:"Republican",photo:"TW",contact:"walcott@senate.michigan.gov",website:"senate.michigan.gov",votes:{"MI-SB-2025-12":{vote:"yes",note:"Sponsored and voted yes on Small Farm Exemption Act."}}},
+const REPRESENTATIVES = [
+  { id:"rep-001", name:"J. Bush", title:"Council Member", body:"Village of Concord Council",
+    jurisdiction:"Village of Concord", party:"Nonpartisan", photo:"JB",
+    contact:"clerk@villageofconcord.com", website:"villageofconcord.com",
+    votes:{ "CONCORD-2025-01":{vote:"yes",note:"Motioned to approve Jesse Brigham Construction contract."} } },
+  { id:"rep-002", name:"K. George", title:"Council Member", body:"Village of Concord Council",
+    jurisdiction:"Village of Concord", party:"Nonpartisan", photo:"KG",
+    contact:"clerk@villageofconcord.com", website:"villageofconcord.com",
+    votes:{ "CONCORD-2025-01":{vote:"yes",note:"Seconded motion to approve sewer contract."} } },
+  { id:"rep-003", name:"Angelita Gunn", title:"Ward 3 Council Member", body:"Jackson City Council",
+    jurisdiction:"City of Jackson", party:"Nonpartisan", photo:"AG",
+    contact:"citycouncil@cityofjackson.org", website:"cityofjackson.org",
+    votes:{ "JACKSON-2025-03":{vote:"yes",note:"Sponsored and voted yes on Urban Agriculture Ordinance."} } },
+  { id:"rep-004", name:"Shalanda Hunt", title:"Ward 5 Council Member", body:"Jackson City Council",
+    jurisdiction:"City of Jackson", party:"Nonpartisan", photo:"SH",
+    contact:"citycouncil@cityofjackson.org", website:"cityofjackson.org",
+    votes:{ "JACKSON-2025-03":{vote:"yes",note:"Voted in favor of Urban Agriculture Ordinance."} } },
+  { id:"rep-005", name:"Sen. Thomas Walcott", title:"State Senator", body:"Michigan Senate",
+    jurisdiction:"State of Michigan", party:"Republican", photo:"TW",
+    contact:"walcott@senate.michigan.gov", website:"senate.michigan.gov",
+    votes:{ "MI-SB-2025-12":{vote:"yes",note:"Sponsored and voted yes on Small Farm Exemption Act."} } },
 ];
 
-// ── UI Components ─────────────────────────────────────────────────────────────
+// ─── Spinner ──────────────────────────────────────────────────────────────────
+const Spinner = () => <div style={{width:24,height:24,border:"3px solid #ddd",borderTopColor:"#1a1a2e",borderRadius:"50%",animation:"spin 0.7s linear infinite",margin:"0 auto"}}/>;
 
-function Spinner() {
-  return h('div',{className:'spin'});
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function Toast({msg, onDone}) {
+  useEffect(()=>{ const t=setTimeout(onDone,3000); return ()=>clearTimeout(t); },[]);
+  return <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:"#1a1a2e",color:"#f0c040",padding:"12px 24px",borderRadius:8,fontFamily:"'Playfair Display',serif",fontSize:14,zIndex:999,boxShadow:"0 4px 20px rgba(0,0,0,0.3)"}}>{msg}</div>;
 }
 
-function Toast({msg,onDone}) {
-  useEffect(()=>{const t=setTimeout(onDone,3000);return()=>clearTimeout(t);},[]);
-  return h('div',{style:{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',background:'#1a1a2e',color:'#f0c040',padding:'12px 24px',borderRadius:8,fontFamily:"'Playfair Display',serif",fontSize:14,zIndex:9999,boxShadow:'0 4px 20px rgba(0,0,0,.3)',whiteSpace:'nowrap'}},msg);
-}
-
-function Tag({bg,color,children}) {
-  return h('span',{style:{background:bg,color,fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:20,textTransform:'uppercase',letterSpacing:1}},children);
-}
-
-function Btn({onClick,bg,color,border,children,style,disabled}) {
-  return h('button',{onClick,disabled,style:Object.assign({background:bg||'#1a1a2e',color:color||'#f0c040',border:border||'none',padding:'9px 18px',borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13},style)},children);
-}
-
-// ── AI Breakdown ──────────────────────────────────────────────────────────────
+// ─── AI Breakdown ─────────────────────────────────────────────────────────────
 function AIBreakdown({bill}) {
   const [data,setData]=useState(null);
-  const show=()=>{
-    const a=ANALYSES[bill.id];
-    setData(a||{plain:bill.summary,benefits:["Community members affected by this proposal"],concerns:["Those who bear implementation costs"],fineprint:[],local:"This proposal directly affects "+bill.jurisdiction+" residents.",bottom:"Review the full text and attend public meetings to form your own view."});
+  const analyze=()=>{ const p=BILL_ANALYSES[bill.id]; setData(p||{plain_english:bill.summary,who_benefits:["Community members affected by this proposal"],who_is_harmed:["Those who bear implementation costs"],hidden_details:[],local_impact:"This proposal directly affects "+bill.jurisdiction+" residents.",bottom_line:"Review the full text and attend public meetings to form your own view."}); };
+  if(!data) return <button onClick={analyze} style={{background:"#1a1a2e",color:"#f0c040",border:"none",padding:"10px 22px",fontFamily:"'Playfair Display',serif",fontSize:13,cursor:"pointer",borderRadius:5}}>⚡ Get AI Analysis</button>;
+  return (
+    <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:10,padding:20}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,color:"#1a1a2e",marginBottom:8}}>🤖 AI Community Analysis</div>
+      <div style={{background:"#f0f4ff",border:"1px solid #c8d8f0",borderRadius:6,padding:"8px 12px",marginBottom:12,fontSize:11,color:"#1a5c8a",fontFamily:"'Lora',serif",lineHeight:1.6}}>
+        ⚖️ <strong>Nonpartisan:</strong> This analysis presents factual, balanced information only. The People's Voice has no political affiliation and takes no position on any bill.
+      </div>
+      <p style={{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.75,color:"#333",marginBottom:16}}>{data.plain_english}</p>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+        <div style={{background:"#eef7f1",borderRadius:7,padding:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#1a6b3c",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>✅ Who Benefits</div>
+          {data.who_benefits?.map((x,i)=><div key={i} style={{fontSize:13,color:"#333",fontFamily:"'Lora',serif",marginBottom:4}}>• {x}</div>)}
+        </div>
+        <div style={{background:"#fdf0ef",borderRadius:7,padding:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#c0392b",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>⚠️ Concerns</div>
+          {data.who_is_harmed?.map((x,i)=><div key={i} style={{fontSize:13,color:"#333",fontFamily:"'Lora',serif",marginBottom:4}}>• {x}</div>)}
+        </div>
+      </div>
+      {data.hidden_details?.length>0&&<div style={{background:"#fffbea",borderRadius:7,padding:12,marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#8a6000",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>🔍 Fine Print</div>
+        {data.hidden_details.map((x,i)=><div key={i} style={{fontSize:13,color:"#333",fontFamily:"'Lora',serif",marginBottom:4}}>• {x}</div>)}
+      </div>}
+      {data.local_impact&&<div style={{background:"#e8f2fa",borderRadius:7,padding:12,marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#1a5c8a",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>📍 Jackson County Impact</div>
+        <div style={{fontSize:13,color:"#333",fontFamily:"'Lora',serif"}}>{data.local_impact}</div>
+      </div>}
+      <div style={{borderTop:"1px solid #e5dece",paddingTop:10,fontFamily:"'Playfair Display',serif",fontStyle:"italic",color:"#1a1a2e",fontSize:14}}>
+        <strong>Bottom Line:</strong> {data.bottom_line}
+      </div>
+    </div>
+  );
+}
+
+// ─── Rep Tracker ──────────────────────────────────────────────────────────────
+function RepTracker({bills}) {
+  const [filter,setFilter]=useState("all");
+  const [selected,setSelected]=useState(null);
+  const filtered=filter==="all"?REPRESENTATIVES:REPRESENTATIVES.filter(r=>r.jurisdiction===filter);
+  const getAlignment=(rep)=>{
+    const b=bills.filter(b=>rep.votes[b.id]&&rep.votes[b.id].vote!=="not-recorded");
+    if(!b.length) return null;
+    const aligned=b.filter(b=>{ const cw=b.votes_yes>b.votes_no?"yes":"no"; return rep.votes[b.id].vote===cw; }).length;
+    return Math.round((aligned/b.length)*100);
   };
-  if(!data) return h(Btn,{onClick:show,style:{marginTop:0}},"⚡ Get AI Analysis");
-  return h('div',{style:{background:'#faf8f3',border:'1px solid #e5dece',borderRadius:10,padding:20}},
-    h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,color:'#1a1a2e',marginBottom:8}},"🤖 AI Community Analysis"),
-    h('div',{style:{background:'#f0f4ff',border:'1px solid #c8d8f0',borderRadius:6,padding:'8px 12px',marginBottom:12,fontSize:11,color:'#1a5c8a',lineHeight:1.6}},
-      h('strong',null,"⚖️ Nonpartisan:")," This analysis presents factual, balanced information only. The People's Voice has no political affiliation and takes no position on any bill."
-    ),
-    h('p',{style:{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.75,color:'#333',marginBottom:16}},data.plain),
-    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}},
-      h('div',{style:{background:'#eef7f1',borderRadius:7,padding:12}},
-        h('div',{style:{fontSize:11,fontWeight:700,color:'#1a6b3c',textTransform:'uppercase',letterSpacing:1,marginBottom:8}},"✅ Who Benefits"),
-        data.benefits.map((x,i)=>h('div',{key:i,style:{fontSize:13,color:'#333',marginBottom:4}},"• "+x))
-      ),
-      h('div',{style:{background:'#fdf0ef',borderRadius:7,padding:12}},
-        h('div',{style:{fontSize:11,fontWeight:700,color:'#c0392b',textTransform:'uppercase',letterSpacing:1,marginBottom:8}},"⚠️ Concerns"),
-        data.concerns.map((x,i)=>h('div',{key:i,style:{fontSize:13,color:'#333',marginBottom:4}},"• "+x))
-      )
-    ),
-    data.fineprint&&data.fineprint.length>0&&h('div',{style:{background:'#fffbea',borderRadius:7,padding:12,marginBottom:12}},
-      h('div',{style:{fontSize:11,fontWeight:700,color:'#8a6000',textTransform:'uppercase',letterSpacing:1,marginBottom:8}},"🔍 Fine Print"),
-      data.fineprint.map((x,i)=>h('div',{key:i,style:{fontSize:13,color:'#333',marginBottom:4}},"• "+x))
-    ),
-    data.local&&h('div',{style:{background:'#e8f2fa',borderRadius:7,padding:12,marginBottom:12}},
-      h('div',{style:{fontSize:11,fontWeight:700,color:'#1a5c8a',textTransform:'uppercase',letterSpacing:1,marginBottom:6}},"📍 Local Impact"),
-      h('div',{style:{fontSize:13,color:'#333'}},data.local)
-    ),
-    h('div',{style:{borderTop:'1px solid #e5dece',paddingTop:10,fontFamily:"'Playfair Display',serif",fontStyle:'italic',color:'#1a1a2e',fontSize:14}},
-      h('strong',null,"Bottom Line: "),data.bottom
-    )
+  const voteColor=(v)=>v==="yes"?"#1a6b3c":v==="no"?"#c0392b":v==="abstain"?"#888":"#bbb";
+  const voteBg=(v)=>v==="yes"?"#eef7f1":v==="no"?"#fdf0ef":"#f5f5f5";
+  const voteLabel=(v)=>v==="yes"?"✅ Yes":v==="no"?"❌ No":v==="abstain"?"⬜ Abstain":"— Not Recorded";
+  return (
+    <div>
+      <div style={{background:"#fff8e7",border:"1px solid #f0c040",borderRadius:8,padding:"12px 16px",marginBottom:16,display:"flex",gap:10,alignItems:"flex-start"}}>
+        <span style={{fontSize:20,flexShrink:0}}>⚖️</span>
+        <div style={{fontFamily:"'Lora',serif",fontSize:13,color:"#555",lineHeight:1.7}}>
+          <strong style={{color:"#1a1a2e",fontFamily:"'Playfair Display',serif"}}>Accountability Tracker</strong> — How your elected representatives voted vs. how the community voted. Sourced from public meeting minutes. <em>This platform takes no political position.</em>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+        {[["all","All"],["Village of Concord","🏘 Concord"],["City of Jackson","🏙 Jackson"],["State of Michigan","🏛 State"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setFilter(v)} style={{background:filter===v?"#1a1a2e":"#fff",color:filter===v?"#f0c040":"#555",border:`1px solid ${filter===v?"#1a1a2e":"#ddd"}`,padding:"7px 14px",borderRadius:20,fontFamily:"'Playfair Display',serif",fontSize:12,fontWeight:filter===v?700:400}}>{l}</button>
+        ))}
+      </div>
+      {filtered.map(rep=>{
+        const alignment=getAlignment(rep);
+        const repBills=bills.filter(b=>rep.votes[b.id]);
+        const isOpen=selected===rep.id;
+        return (
+          <div key={rep.id} style={{background:"#fff",border:"1px solid #e5dece",borderRadius:10,marginBottom:12,overflow:"hidden",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
+            <div style={{padding:"16px 18px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+              <div style={{width:48,height:48,borderRadius:"50%",background:"#1a1a2e",color:"#f0c040",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontFamily:"'Playfair Display',serif",fontSize:14,flexShrink:0}}>{rep.photo}</div>
+              <div style={{flex:1,minWidth:140}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:16,color:"#1a1a2e"}}>{rep.name}</div>
+                <div style={{fontSize:12,color:"#888",fontFamily:"'Lora',serif"}}>{rep.title} · {rep.body}</div>
+                <div style={{fontSize:11,color:"#aaa"}}>{rep.party}</div>
+              </div>
+              <div style={{textAlign:"center",minWidth:80}}>
+                {alignment!==null?(<>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:24,color:alignment>=70?"#1a6b3c":alignment>=40?"#8a6000":"#c0392b"}}>{alignment}%</div>
+                  <div style={{fontSize:11,color:"#888",textTransform:"uppercase",letterSpacing:1}}>With People</div>
+                  <div style={{height:6,background:"#eee",borderRadius:3,marginTop:4,overflow:"hidden"}}>
+                    <div style={{width:`${alignment}%`,height:"100%",background:alignment>=70?"#1a6b3c":alignment>=40?"#f0c040":"#c0392b",borderRadius:3}}/>
+                  </div>
+                </>):<div style={{fontSize:12,color:"#bbb",fontStyle:"italic"}}>No data yet</div>}
+              </div>
+              <button onClick={()=>setSelected(isOpen?null:rep.id)} style={{background:"transparent",border:"1px solid #e0e0e0",borderRadius:6,padding:"8px 14px",fontFamily:"'Playfair Display',serif",fontSize:13,color:"#555"}}>{isOpen?"▲ Close":"▼ See Votes"}</button>
+            </div>
+            {isOpen&&(
+              <div style={{borderTop:"1px solid #f0ece4",padding:"14px 18px",background:"#faf8f3"}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a1a2e",marginBottom:12}}>Official Votes vs. Community Sentiment</div>
+                {repBills.length===0&&<div style={{color:"#bbb",fontStyle:"italic",fontSize:13}}>No recorded votes yet.</div>}
+                {repBills.map(b=>{
+                  const rv=rep.votes[b.id];
+                  const total=b.votes_yes+b.votes_no+b.votes_abstain;
+                  const cw=b.votes_yes>b.votes_no?"yes":"no";
+                  const aligned=rv.vote!=="not-recorded"&&rv.vote===cw;
+                  const misaligned=rv.vote!=="not-recorded"&&rv.vote!==cw;
+                  return (
+                    <div key={b.id} style={{marginBottom:14,paddingBottom:14,borderBottom:"1px solid #eee"}}>
+                      <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a1a2e",marginBottom:6}}>{b.title}</div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:6}}>
+                        <div style={{background:voteBg(rv.vote),color:voteColor(rv.vote),fontWeight:700,fontSize:12,padding:"4px 10px",borderRadius:20}}>Rep: {voteLabel(rv.vote)}</div>
+                        <div style={{background:"#f0f0f0",color:"#555",fontSize:12,padding:"4px 10px",borderRadius:20}}>Community: {pct(b.votes_yes,total)}% Support</div>
+                        {aligned&&<div style={{background:"#eef7f1",color:"#1a6b3c",fontSize:12,fontWeight:700,padding:"4px 10px",borderRadius:20}}>✅ Aligned</div>}
+                        {misaligned&&<div style={{background:"#fdf0ef",color:"#c0392b",fontSize:12,fontWeight:700,padding:"4px 10px",borderRadius:20}}>⚠️ Against community</div>}
+                      </div>
+                      {rv.note&&<div style={{fontSize:12,color:"#888",fontStyle:"italic"}}>📋 {rv.note}</div>}
+                    </div>
+                  );
+                })}
+                <div style={{display:"flex",gap:10,marginTop:4}}>
+                  <a href={`mailto:${rep.contact}`} style={{fontSize:12,color:"#1a5c8a",textDecoration:"none"}}>✉️ Contact</a>
+                  <span style={{color:"#ddd"}}>·</span>
+                  <a href={`https://${rep.website}`} target="_blank" style={{fontSize:12,color:"#1a5c8a",textDecoration:"none"}}>🌐 Website</a>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
-// ── Social Share ──────────────────────────────────────────────────────────────
-function ShareButtons({bill,choice}) {
-  const emoji = choice==='yes'?'✅':choice==='no'?'❌':'⬜';
-  const text = `${emoji} I voted ${choice.toUpperCase()} on "${bill.title}" via The People's Voice — a nonpartisan civic platform. See the community results: ${SITE_URL}`;
-  const share = (platform) => {
-    if(platform==='fb') window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SITE_URL)}&quote=${encodeURIComponent(text)}`,'_blank','width=600,height=400');
-    else if(platform==='x') window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,'_blank','width=600,height=400');
-    else {
-      if(navigator.share) navigator.share({title:"My vote on The People's Voice",text,url:SITE_URL});
-      else { navigator.clipboard&&navigator.clipboard.writeText(text); alert("Copied! Paste to share anywhere."); }
-    }
-  };
-  return h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}},
-    h('button',{onClick:()=>share('fb'),style:{background:'#1877f2',color:'#fff',border:'none',padding:'7px 12px',borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12}},"f Share"),
-    h('button',{onClick:()=>share('x'),style:{background:'#000',color:'#fff',border:'none',padding:'7px 12px',borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12}},"𝕏 Share"),
-    h('button',{onClick:()=>share('other'),style:{background:'#555',color:'#fff',border:'none',padding:'7px 12px',borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12}},"📋 Copy")
-  );
-}
-
-// ── Email Rep Buttons ─────────────────────────────────────────────────────────
-function EmailRepButtons({bill,choice}) {
-  const relevant = REPS.filter(r=>r.votes[bill.id]||r.jurisdiction===bill.jurisdiction).slice(0,3);
-  if(!relevant.length) return h('div',{style:{fontSize:12,color:'#aaa',fontStyle:'italic',marginTop:6}},"No rep contact info on file for this bill yet.");
-  return h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}},
-    relevant.map(rep=>{
-      const subject = encodeURIComponent("Re: "+bill.title+" — Constituent Input");
-      const body = encodeURIComponent(
-        "Dear "+rep.name+",\n\n"+
-        "As a constituent, I am writing regarding:\n"+bill.title+" ("+bill.id+")\n\n"+
-        bill.summary+"\n\n"+
-        "The People's Voice community platform shows "+bill.votes_yes+" residents support this measure vs "+bill.votes_no+" opposed.\n\n"+
-        "I personally voted "+choice.toUpperCase()+" on this bill and wanted to share my perspective directly.\n\n"+
-        "[Add your personal message here]\n\n"+
-        "Respectfully,\n[Your name]\nDistrict resident\nSent via The People's Voice — "+SITE_URL
-      );
-      return h('a',{key:rep.id,href:`mailto:${rep.contact}?subject=${subject}&body=${body}`,style:{background:'#fff8e7',border:'1px solid #f0c040',borderRadius:5,padding:'7px 12px',fontSize:12,color:'#8a6000',textDecoration:'none',fontFamily:"'Playfair Display',serif",fontWeight:700,display:'inline-flex',alignItems:'center',gap:4}},
-        "✉️ Email "+rep.name.split(" ").pop()
-      );
-    })
-  );
-}
-
-// ── Bill Card ─────────────────────────────────────────────────────────────────
-function BillCard({bill,user,userVotes,onVoteCast,onRepGain}) {
+// ─── Bill Card ────────────────────────────────────────────────────────────────
+function BillCard({bill, user, userVotes, onVoteCast, onRepGain}) {
   const [open,setOpen]=useState(false);
-  const [tab,setTab]=useState('ai');
+  const [tab,setTab]=useState("ai");
   const [pending,setPending]=useState(null);
   const [comments,setComments]=useState([]);
-  const [commentText,setCommentText]=useState('');
+  const [commentText,setCommentText]=useState("");
   const [commentAnon,setCommentAnon]=useState(false);
   const [saving,setSaving]=useState(false);
   const [toast,setToast]=useState(null);
@@ -204,213 +360,182 @@ function BillCard({bill,user,userVotes,onVoteCast,onRepGain}) {
   const myVote=userVotes[bill.id];
   const meta=LEVEL_META[bill.level]||LEVEL_META.city;
 
-  useEffect(()=>{if(open&&tab==='forum')loadComments();},[open,tab]);
+  useEffect(()=>{ if(open&&tab==="forum") loadComments(); },[open,tab]);
 
   const loadComments=async()=>{
-    const {data}=await sb.from('bill_comments').select('*').eq('bill_id',bill.id).order('created_at',{ascending:false});
-    if(data)setComments(data);
+    const {data}=await sb.from("bill_comments").select("*").eq("bill_id",bill.id).order("created_at",{ascending:false});
+    if(data) setComments(data);
   };
 
   const castVote=async(choice,anon)=>{
     if(!user){setToast("Please sign in to vote.");return;}
     setSaving(true);
-    const {error}=await sb.from('user_votes').insert({user_id:user.id,bill_id:bill.id,choice,anonymous:anon});
+    const {error}=await sb.from("user_votes").insert({user_id:user.id,bill_id:bill.id,choice,anonymous:anon});
     if(!error){
-      await sb.from('bills').update({['votes_'+choice]:bill['votes_'+choice]+1}).eq('id',bill.id);
-      await sb.from('profiles').update({reputation:(user.reputation||0)+5}).eq('id',user.id);
-      onVoteCast(bill.id,choice,anon);onRepGain(5);setToast("Vote recorded! +5 reputation");
-    } else setToast("You've already voted on this bill.");
-    setSaving(false);setPending(null);
+      await sb.from("bills").update({[`votes_${choice}`]:bill[`votes_${choice}`]+1}).eq("id",bill.id);
+      await sb.from("profiles").update({reputation:((user.reputation||0)+5)}).eq("id",user.id);
+      onVoteCast(bill.id,choice,anon);
+      onRepGain(5);
+      setToast("Vote recorded! +5 reputation");
+    } else { setToast("You've already voted on this bill."); }
+    setSaving(false); setPending(null);
   };
 
   const postComment=async()=>{
-    if(!commentText.trim()||!user)return;
-    const name=commentAnon?'Anonymous':(user.display_name||user.email.split('@')[0]);
-    const {error}=await sb.from('bill_comments').insert({bill_id:bill.id,user_id:user.id,display_name:name,content:commentText.trim(),anonymous:commentAnon});
+    if(!commentText.trim()||!user) return;
+    const name=commentAnon?"Anonymous":(user.display_name||user.email.split("@")[0]);
+    const {error}=await sb.from("bill_comments").insert({bill_id:bill.id,user_id:user.id,display_name:name,content:commentText.trim(),anonymous:commentAnon});
     if(!error){
       setComments(prev=>[{id:Date.now(),display_name:name,content:commentText.trim(),created_at:new Date().toISOString(),anonymous:commentAnon},...prev]);
-      setCommentText('');
-      await sb.from('profiles').update({reputation:(user.reputation||0)+10}).eq('id',user.id);
-      onRepGain(10);setToast("+10 reputation for commenting!");
+      setCommentText("");
+      await sb.from("profiles").update({reputation:((user.reputation||0)+10)}).eq("id",user.id);
+      onRepGain(10);
+      setToast("+10 reputation for commenting!");
     }
   };
 
-  return h('div',{style:{background:'#fff',borderRadius:10,border:'1px solid #e5dece',marginBottom:16,overflow:'hidden',boxShadow:'0 2px 10px rgba(0,0,0,.05)'}},
-    toast&&h(Toast,{msg:toast,onDone:()=>setToast(null)}),
-    h('div',{style:{borderLeft:'5px solid '+meta.color,padding:'18px 16px'}},
-      h('div',{style:{display:'flex',gap:7,flexWrap:'wrap',marginBottom:10}},
-        h(Tag,{bg:meta.bg,color:meta.color},meta.icon+" "+meta.label),
-        h(Tag,{bg:'#f5f5f5',color:'#555'},bill.jurisdiction),
-        h(Tag,{bg:'#fffbea',color:'#8a6000'},bill.status)
-      ),
-      h('h3',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:17,color:'#1a1a2e',margin:'0 0 6px',lineHeight:1.3}},bill.title),
-      h('div',{style:{fontSize:12,color:'#aaa',marginBottom:10}},"Introduced "+bill.introduced+" · "+bill.sponsor),
-      h('p',{style:{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.7,color:'#444',margin:'0 0 14px'}},bill.summary),
-
-      // Vote bar
-      h('div',{style:{marginBottom:14}},
-        h('div',{style:{display:'flex',height:10,borderRadius:5,overflow:'hidden',marginBottom:6,background:'#eee'}},
-          h('div',{style:{width:pct(bill.votes_yes,total)+'%',background:'#1a6b3c',transition:'width .5s'}}),
-          h('div',{style:{width:pct(bill.votes_no,total)+'%',background:'#c0392b',transition:'width .5s'}}),
-          h('div',{style:{width:pct(bill.votes_abstain,total)+'%',background:'#bbb'}})
-        ),
-        h('div',{style:{display:'flex',gap:10,fontSize:12,flexWrap:'wrap'}},
-          h('span',{style:{color:'#1a6b3c',fontWeight:600}},"✅ "+pct(bill.votes_yes,total)+"% ("+bill.votes_yes.toLocaleString()+")"),
-          h('span',{style:{color:'#c0392b',fontWeight:600}},"❌ "+pct(bill.votes_no,total)+"% ("+bill.votes_no.toLocaleString()+")"),
-          h('span',{style:{color:'#aaa',marginLeft:'auto'}},total.toLocaleString()+" votes")
-        )
-      ),
-
-      // Vote buttons or result
-      !myVote?h(Fragment,null,
-        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-          ['yes','no','abstain'].map(v=>h(Btn,{key:v,onClick:()=>setPending(v),disabled:saving,bg:v==='yes'?'#1a6b3c':v==='no'?'#c0392b':'#777',color:'#fff'},v==='yes'?'✅ Support':v==='no'?'❌ Oppose':'⬜ Abstain'))
-        ),
-        pending&&h('div',{style:{marginTop:12,background:'#faf8f3',border:'1px solid #e5dece',borderRadius:8,padding:14}},
-          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:'#1a1a2e',marginBottom:8}},"Show your vote publicly?"),
-          h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-            h(Btn,{onClick:()=>castVote(pending,false)},"👤 Public"),
-            h(Btn,{onClick:()=>castVote(pending,true),bg:'#5b3a8c',color:'#fff'},"🔒 Anonymous"),
-            h(Btn,{onClick:()=>setPending(null),bg:'transparent',color:'#aaa',border:'1px solid #ddd'},"Cancel")
-          )
-        )
-      ):h('div',null,
-        h('div',{style:{display:'inline-flex',alignItems:'center',gap:8,background:'#f5f5f5',border:'1px solid #e0e0e0',borderRadius:6,padding:'8px 14px',fontSize:13}},
-          "✓ Voted ",
-          h('strong',{style:{color:myVote.choice==='yes'?'#1a6b3c':myVote.choice==='no'?'#c0392b':'#888'}},myVote.choice),
-          h('span',{style:{color:'#ccc'}}," · "),
-          h('span',{style:{color:'#aaa'}},myVote.anonymous?"🔒 anonymous":"👤 public")
-        ),
-        !myVote.anonymous&&h(Fragment,null,
-          h('div',{style:{marginTop:6,fontSize:12,color:'#888',fontFamily:"'Lora',serif"}},"Share your vote:"),
-          h(ShareButtons,{bill,choice:myVote.choice}),
-          h('div',{style:{marginTop:8,fontSize:12,color:'#888',fontFamily:"'Lora',serif"}},"Contact your representative:"),
-          h(EmailRepButtons,{bill,choice:myVote.choice})
-        )
-      ),
-
-      h('button',{onClick:()=>setOpen(!open),style:{marginTop:12,background:'transparent',border:'none',color:'#1a5c8a',fontFamily:"'Playfair Display',serif",fontSize:13,padding:0}},open?"▲ Close":"▼ AI Analysis & Discussion")
-    ),
-
-    open&&h('div',{style:{borderTop:'1px solid #e5dece',padding:'16px 16px'}},
-      h('div',{style:{display:'flex',borderBottom:'2px solid #e5dece',marginBottom:16}},
-        ['ai','forum'].map(t=>h('button',{key:t,onClick:()=>setTab(t),style:{background:'transparent',border:'none',borderBottom:tab===t?'2px solid #1a1a2e':'none',marginBottom:-2,padding:'8px 14px',fontFamily:"'Playfair Display',serif",fontWeight:tab===t?700:400,fontSize:14,color:tab===t?'#1a1a2e':'#aaa'}},t==='ai'?"🤖 AI Analysis":"💬 Discussion"))
-      ),
-      tab==='ai'&&h(AIBreakdown,{bill}),
-      tab==='forum'&&h('div',null,
-        user?h('div',{style:{background:'#faf8f3',border:'1px solid #e5dece',borderRadius:8,padding:14,marginBottom:14}},
-          h('textarea',{value:commentText,onChange:e=>setCommentText(e.target.value),placeholder:"Share your perspective with your community...",rows:3,style:{width:'100%',border:'1px solid #ddd',borderRadius:5,padding:'8px 10px',fontSize:13,resize:'vertical',boxSizing:'border-box'}}),
-          h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}},
-            h('label',{style:{fontSize:13,color:'#555',cursor:'pointer',display:'flex',alignItems:'center',gap:6}},
-              h('input',{type:'checkbox',checked:commentAnon,onChange:e=>setCommentAnon(e.target.checked)})," Anonymous"
-            ),
-            h(Btn,{onClick:postComment},"Post +10 rep")
-          )
-        ):h('div',{style:{background:'#fff8e7',border:'1px solid #f0c040',borderRadius:8,padding:12,marginBottom:14,fontSize:13,color:'#8a6000',textAlign:'center'}},"Sign in to join the discussion."),
-        comments.length===0&&h('div',{style:{textAlign:'center',color:'#bbb',fontStyle:'italic',fontSize:13,padding:16}},"No comments yet. Be the first."),
-        comments.map((c,i)=>h('div',{key:i,style:{display:'flex',gap:10,marginBottom:12,paddingBottom:12,borderBottom:'1px solid #f0ece4'}},
-          h('div',{style:{width:36,height:36,borderRadius:'50%',background:c.anonymous?'#ccc':'#1a1a2e',color:c.anonymous?'#666':'#f0c040',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:14,flexShrink:0}},c.anonymous?'?':(c.display_name||'?')[0].toUpperCase()),
-          h('div',{style:{flex:1}},
-            h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:3}},
-              h('span',{style:{fontWeight:700,fontSize:13,color:'#1a1a2e',fontFamily:"'Playfair Display',serif"}},c.display_name),
-              h('span',{style:{fontSize:11,color:'#bbb'}},new Date(c.created_at).toLocaleDateString())
-            ),
-            h('div',{style:{fontSize:13,lineHeight:1.65,color:'#333'}},c.content)
-          )
-        ))
-      )
-    )
+  return (
+    <div style={{background:"#fff",borderRadius:10,border:"1px solid #e5dece",marginBottom:16,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.05)"}}>
+      {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
+      <div style={{borderLeft:`5px solid ${meta.color}`,padding:"18px 20px"}}>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:10}}>
+          <span style={{background:meta.bg,color:meta.color,fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20,textTransform:"uppercase",letterSpacing:1}}>{meta.icon} {meta.label}</span>
+          <span style={{background:"#f5f5f5",color:"#555",fontSize:11,padding:"3px 9px",borderRadius:20}}>{bill.jurisdiction}</span>
+          <span style={{background:"#fffbea",color:"#8a6000",fontSize:11,padding:"3px 9px",borderRadius:20}}>{bill.status}</span>
+        </div>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:18,color:"#1a1a2e",margin:"0 0 6px",lineHeight:1.3}}>{bill.title}</h3>
+        <div style={{fontSize:12,color:"#aaa",marginBottom:12}}>Introduced {bill.introduced} · {bill.sponsor}</div>
+        <p style={{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.75,color:"#444",margin:"0 0 14px"}}>{bill.summary}</p>
+        <div style={{marginBottom:14}}>
+          <div style={{display:"flex",height:10,borderRadius:5,overflow:"hidden",marginBottom:6,background:"#eee"}}>
+            <div style={{width:`${pct(bill.votes_yes,total)}%`,background:"#1a6b3c",transition:"width 0.5s"}}/>
+            <div style={{width:`${pct(bill.votes_no,total)}%`,background:"#c0392b",transition:"width 0.5s"}}/>
+            <div style={{width:`${pct(bill.votes_abstain,total)}%`,background:"#bbb"}}/>
+          </div>
+          <div style={{display:"flex",gap:12,fontSize:12,flexWrap:"wrap"}}>
+            <span style={{color:"#1a6b3c",fontWeight:600}}>✅ {pct(bill.votes_yes,total)}% ({bill.votes_yes.toLocaleString()})</span>
+            <span style={{color:"#c0392b",fontWeight:600}}>❌ {pct(bill.votes_no,total)}% ({bill.votes_no.toLocaleString()})</span>
+            <span style={{color:"#aaa"}}>⬜ {bill.votes_abstain}</span>
+            <span style={{color:"#aaa",marginLeft:"auto"}}>{total.toLocaleString()} votes</span>
+          </div>
+        </div>
+        {!myVote?(
+          <>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {[["yes","✅ Support","#1a6b3c"],["no","❌ Oppose","#c0392b"],["abstain","⬜ Abstain","#777"]].map(([v,l,c])=>(
+                <button key={v} onClick={()=>setPending(v)} disabled={saving} style={{background:c,color:"#fff",border:"none",padding:"9px 18px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13}}>{l}</button>
+              ))}
+            </div>
+            {pending&&(
+              <div style={{marginTop:12,background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:14}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a1a2e",marginBottom:8}}>Show your vote publicly?</div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>castVote(pending,false)} style={{background:"#1a1a2e",color:"#f0c040",border:"none",padding:"8px 16px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13}}>👤 Public</button>
+                  <button onClick={()=>castVote(pending,true)} style={{background:"#5b3a8c",color:"#fff",border:"none",padding:"8px 16px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13}}>🔒 Anonymous</button>
+                  <button onClick={()=>setPending(null)} style={{background:"transparent",color:"#aaa",border:"1px solid #ddd",padding:"8px 12px",borderRadius:5,fontSize:13}}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"#f5f5f5",border:"1px solid #e0e0e0",borderRadius:6,padding:"8px 14px",fontSize:13}}>
+              ✓ Voted <strong style={{color:myVote.choice==="yes"?"#1a6b3c":myVote.choice==="no"?"#c0392b":"#888"}}>{myVote.choice}</strong>
+              <span style={{color:"#ccc"}}>·</span>
+              <span style={{color:"#aaa"}}>{myVote.anonymous?"🔒 anonymous":"👤 public"}</span>
+            </div>
+            {!myVote.anonymous&&(
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <button onClick={()=>{
+                  const voteEmoji = myVote.choice==="yes"?"✅":myVote.choice==="no"?"❌":"⬜";
+                  const text = `${voteEmoji} I just voted ${myVote.choice.toUpperCase()} on "${bill.title}" via The People's Voice — a nonpartisan civic platform. See the community results: thekiltedfarmer.github.io`;
+                  window.open(`https://www.facebook.com/sharer/sharer.php?u=https://thekiltedfarmer.github.io&quote=${encodeURIComponent(text)}`,"_blank","width=600,height=400");
+                }} style={{background:"#1877f2",color:"#fff",border:"none",padding:"8px 14px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:14}}>f</span> Share on Facebook
+                </button>
+                <button onClick={()=>{
+                  const voteEmoji = myVote.choice==="yes"?"✅":myVote.choice==="no"?"❌":"⬜";
+                  const text = `${voteEmoji} I voted ${myVote.choice.toUpperCase()} on "${bill.title}" — The People's Voice civic platform thekiltedfarmer.github.io`;
+                  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,"_blank","width=600,height=400");
+                }} style={{background:"#000",color:"#fff",border:"none",padding:"8px 14px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:14}}>𝕏</span> Share on X
+                </button>
+                <button onClick={()=>{
+                  const voteEmoji = myVote.choice==="yes"?"✅":myVote.choice==="no"?"❌":"⬜";
+                  const text = `${voteEmoji} I voted ${myVote.choice.toUpperCase()} on: ${bill.title}\n\nSee how your community voted at The People's Voice:\nthekiltedfarmer.github.io\n\n⚖️ Nonpartisan · Independent · Not affiliated with any government or party`;
+                  if(navigator.share){ navigator.share({title:"My vote on The People's Voice",text,url:"https://thekiltedfarmer.github.io"}); }
+                  else { navigator.clipboard?.writeText(text); alert("Vote text copied — paste it anywhere!"); }
+                }} style={{background:"#555",color:"#fff",border:"none",padding:"8px 14px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",gap:6}}>
+                  📋 Copy / Share
+                </button>
+              </div>
+            )}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {REPRESENTATIVES.filter(r=>Object.keys(r.votes).includes(bill.id)||r.jurisdiction===bill.jurisdiction).slice(0,3).map(rep=>(
+                <a key={rep.id} href={`mailto:${rep.contact}?subject=${encodeURIComponent("Re: "+bill.title+" — Constituent Input")}&body=${encodeURIComponent("Dear "+rep.name+",\n\nAs a constituent, I am writing regarding: "+bill.title+" ("+bill.id+")\n\n"+bill.summary+"\n\nThe People's Voice community platform shows that "+bill.votes_yes+" residents support this measure vs "+bill.votes_no+" opposed.\n\nI personally voted "+myVote.choice.toUpperCase()+" on this bill and wanted to share my perspective with you directly.\n\n[Add your personal message here]\n\nRespectfully,\n[Your name]\nDistrict resident\nSent via The People's Voice — thekiltedfarmer.github.io")}`}
+                  style={{background:"#fff8e7",border:"1px solid #f0c040",borderRadius:5,padding:"8px 12px",fontSize:12,color:"#8a6000",textDecoration:"none",fontFamily:"'Playfair Display',serif",fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
+                  ✉️ Email {rep.name.split(" ").slice(-1)[0]}
+                </a>
+              ))}
+              {REPRESENTATIVES.filter(r=>Object.keys(r.votes).includes(bill.id)||r.jurisdiction===bill.jurisdiction).length===0&&(
+                <div style={{fontSize:12,color:"#aaa",fontStyle:"italic",fontFamily:"'Lora',serif"}}>No rep contact info on file for this bill yet.</div>
+              )}
+            </div>
+          </div>
+        )}
+        <button onClick={()=>setOpen(!open)} style={{marginTop:12,background:"transparent",border:"none",color:"#1a5c8a",fontFamily:"'Playfair Display',serif",fontSize:13,padding:0}}>{open?"▲ Close":"▼ AI Analysis & Discussion"}</button>
+      </div>
+      {open&&(
+        <div style={{borderTop:"1px solid #e5dece",padding:"16px 20px"}}>
+          <div style={{display:"flex",borderBottom:"2px solid #e5dece",marginBottom:16}}>
+            {[["ai","🤖 AI Analysis"],["forum","💬 Discussion"]].map(([t,l])=>(
+              <button key={t} onClick={()=>setTab(t)} style={{background:"transparent",border:"none",borderBottom:tab===t?"2px solid #1a1a2e":"none",marginBottom:-2,padding:"8px 16px",fontFamily:"'Playfair Display',serif",fontWeight:tab===t?700:400,fontSize:14,color:tab===t?"#1a1a2e":"#aaa"}}>{l}</button>
+            ))}
+          </div>
+          {tab==="ai"&&<AIBreakdown bill={bill}/>}
+          {tab==="forum"&&(
+            <div>
+              {user?(
+                <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:14,marginBottom:14}}>
+                  <textarea value={commentText} onChange={e=>setCommentText(e.target.value)} placeholder="Share your perspective with your community..." rows={3}
+                    style={{width:"100%",border:"1px solid #ddd",borderRadius:5,padding:"8px 10px",fontFamily:"'Lora',serif",fontSize:13,resize:"vertical",boxSizing:"border-box"}}/>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+                    <label style={{fontSize:13,color:"#555",cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                      <input type="checkbox" checked={commentAnon} onChange={e=>setCommentAnon(e.target.checked)}/> Anonymous
+                    </label>
+                    <button onClick={postComment} style={{background:"#1a1a2e",color:"#f0c040",border:"none",padding:"8px 18px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,borderRadius:5}}>Post +10 rep</button>
+                  </div>
+                </div>
+              ):<div style={{background:"#fff8e7",border:"1px solid #f0c040",borderRadius:8,padding:12,marginBottom:14,fontSize:13,color:"#8a6000",textAlign:"center"}}>Sign in to join the discussion.</div>}
+              {comments.length===0&&<div style={{textAlign:"center",color:"#bbb",fontStyle:"italic",fontSize:13,padding:16}}>No comments yet. Be the first.</div>}
+              {comments.map((c,i)=>(
+                <div key={i} style={{display:"flex",gap:10,marginBottom:12,paddingBottom:12,borderBottom:"1px solid #f0ece4"}}>
+                  <div style={{width:36,height:36,borderRadius:"50%",background:c.anonymous?"#ccc":"#1a1a2e",color:c.anonymous?"#666":"#f0c040",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,flexShrink:0}}>{c.anonymous?"?":(c.display_name||"?")[0].toUpperCase()}</div>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontWeight:700,fontSize:13,color:"#1a1a2e",fontFamily:"'Playfair Display',serif"}}>{c.display_name}</span>
+                      <span style={{fontSize:11,color:"#bbb"}}>{new Date(c.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div style={{fontSize:13,lineHeight:1.65,color:"#333",fontFamily:"'Lora',serif"}}>{c.content}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
-// ── Rep Tracker ───────────────────────────────────────────────────────────────
-function RepTracker({bills}) {
-  const [filter,setFilter]=useState('all');
-  const [selected,setSelected]=useState(null);
-  const filtered=filter==='all'?REPS:REPS.filter(r=>r.jurisdiction===filter);
-
-  const getAlignment=rep=>{
-    const b=bills.filter(b=>rep.votes[b.id]&&rep.votes[b.id].vote!=='not-recorded');
-    if(!b.length)return null;
-    const aligned=b.filter(b=>{const cw=b.votes_yes>b.votes_no?'yes':'no';return rep.votes[b.id].vote===cw;}).length;
-    return Math.round(aligned/b.length*100);
-  };
-  const voteColor=v=>v==='yes'?'#1a6b3c':v==='no'?'#c0392b':'#888';
-  const voteBg=v=>v==='yes'?'#eef7f1':v==='no'?'#fdf0ef':'#f5f5f5';
-  const voteLabel=v=>v==='yes'?'✅ Yes':v==='no'?'❌ No':v==='abstain'?'⬜ Abstain':'— Not Recorded';
-
-  return h('div',null,
-    h('div',{style:{background:'#fff8e7',border:'1px solid #f0c040',borderRadius:8,padding:'12px 14px',marginBottom:16,display:'flex',gap:10,alignItems:'flex-start'}},
-      h('span',{style:{fontSize:20,flexShrink:0}},"⚖️"),
-      h('div',{style:{fontFamily:"'Lora',serif",fontSize:13,color:'#555',lineHeight:1.7}},
-        h('strong',{style:{color:'#1a1a2e',fontFamily:"'Playfair Display',serif"}},"Accountability Tracker")," — How your elected representatives voted vs. how the community voted. Sourced from public meeting minutes. ",h('em',null,"This platform takes no political position.")
-      )
-    ),
-    h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}},
-      [['all','All'],['Village of Concord','🏘 Concord'],['City of Jackson','🏙 Jackson'],['State of Michigan','🏛 State']].map(([v,l])=>
-        h('button',{key:v,onClick:()=>setFilter(v),style:{background:filter===v?'#1a1a2e':'#fff',color:filter===v?'#f0c040':'#555',border:'1px solid '+(filter===v?'#1a1a2e':'#ddd'),padding:'7px 14px',borderRadius:20,fontFamily:"'Playfair Display',serif",fontSize:12,fontWeight:filter===v?700:400}},l)
-      )
-    ),
-    filtered.map(rep=>{
-      const alignment=getAlignment(rep);
-      const repBills=bills.filter(b=>rep.votes[b.id]);
-      const isOpen=selected===rep.id;
-      return h('div',{key:rep.id,style:{background:'#fff',border:'1px solid #e5dece',borderRadius:10,marginBottom:12,overflow:'hidden',boxShadow:'0 2px 8px rgba(0,0,0,.04)'}},
-        h('div',{style:{padding:'14px 16px',display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
-          h('div',{style:{width:44,height:44,borderRadius:'50%',background:'#1a1a2e',color:'#f0c040',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontFamily:"'Playfair Display',serif",fontSize:13,flexShrink:0}},rep.photo),
-          h('div',{style:{flex:1,minWidth:120}},
-            h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15,color:'#1a1a2e'}},rep.name),
-            h('div',{style:{fontSize:11,color:'#888'}},rep.title+" · "+rep.body),
-            h('div',{style:{fontSize:11,color:'#aaa'}},rep.party)
-          ),
-          alignment!==null?h('div',{style:{textAlign:'center',minWidth:70}},
-            h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:22,color:alignment>=70?'#1a6b3c':alignment>=40?'#8a6000':'#c0392b'}},alignment+"%"),
-            h('div',{style:{fontSize:10,color:'#888',textTransform:'uppercase',letterSpacing:1}},"With People"),
-            h('div',{style:{height:5,background:'#eee',borderRadius:3,marginTop:3,overflow:'hidden'}},
-              h('div',{style:{width:alignment+'%',height:'100%',background:alignment>=70?'#1a6b3c':alignment>=40?'#f0c040':'#c0392b',borderRadius:3}})
-            )
-          ):h('div',{style:{fontSize:12,color:'#bbb',fontStyle:'italic'}},"No data"),
-          h('button',{onClick:()=>setSelected(isOpen?null:rep.id),style:{background:'transparent',border:'1px solid #e0e0e0',borderRadius:6,padding:'7px 12px',fontFamily:"'Playfair Display',serif",fontSize:12,color:'#555'}},isOpen?"▲ Close":"▼ Votes")
-        ),
-        isOpen&&h('div',{style:{borderTop:'1px solid #f0ece4',padding:'14px 16px',background:'#faf8f3'}},
-          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:'#1a1a2e',marginBottom:12}},"Official Votes vs. Community Sentiment"),
-          repBills.length===0&&h('div',{style:{color:'#bbb',fontStyle:'italic',fontSize:13}},"No recorded votes yet."),
-          repBills.map(b=>{
-            const rv=rep.votes[b.id];
-            const total=b.votes_yes+b.votes_no+b.votes_abstain;
-            const cw=b.votes_yes>b.votes_no?'yes':'no';
-            const aligned=rv.vote!=='not-recorded'&&rv.vote===cw;
-            const misaligned=rv.vote!=='not-recorded'&&rv.vote!==cw;
-            return h('div',{key:b.id,style:{marginBottom:14,paddingBottom:14,borderBottom:'1px solid #eee'}},
-              h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:'#1a1a2e',marginBottom:6}},b.title),
-              h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:5}},
-                h('div',{style:{background:voteBg(rv.vote),color:voteColor(rv.vote),fontWeight:700,fontSize:12,padding:'4px 10px',borderRadius:20}},"Rep: "+voteLabel(rv.vote)),
-                h('div',{style:{background:'#f0f0f0',color:'#555',fontSize:12,padding:'4px 10px',borderRadius:20}},"Community: "+pct(b.votes_yes,total)+"% Support"),
-                aligned&&h('div',{style:{background:'#eef7f1',color:'#1a6b3c',fontSize:12,fontWeight:700,padding:'4px 10px',borderRadius:20}},"✅ Aligned"),
-                misaligned&&h('div',{style:{background:'#fdf0ef',color:'#c0392b',fontSize:12,fontWeight:700,padding:'4px 10px',borderRadius:20}},"⚠️ Against community")
-              ),
-              rv.note&&h('div',{style:{fontSize:12,color:'#888',fontStyle:'italic'}},"📋 "+rv.note)
-            );
-          }),
-          h('div',{style:{display:'flex',gap:10,marginTop:8}},
-            h('a',{href:'mailto:'+rep.contact,style:{fontSize:12,color:'#1a5c8a',textDecoration:'none'}},"✉️ Contact "+rep.name.split(' ')[0]),
-            h('span',{style:{color:'#ddd'}},"·"),
-            h('a',{href:'https://'+rep.website,target:'_blank',style:{fontSize:12,color:'#1a5c8a',textDecoration:'none'}},"🌐 Website")
-          )
-        )
-      );
-    })
-  );
-}
-
-// ── Project Card ──────────────────────────────────────────────────────────────
-function ProjectCard({project,user,onRepGain}) {
+// ─── Project Card ─────────────────────────────────────────────────────────────
+function ProjectCard({project, user, onRepGain}) {
   const [open,setOpen]=useState(false);
-  const [tab,setTab]=useState('pledges');
-  const [pledgeType,setPledgeType]=useState('labor');
-  const [pledgeVal,setPledgeVal]=useState('');
-  const [pledgeDetail,setPledgeDetail]=useState('');
-  const [commentText,setCommentText]=useState('');
+  const [tab,setTab]=useState("pledges");
+  const [pledgeType,setPledgeType]=useState("labor");
+  const [pledgeVal,setPledgeVal]=useState("");
+  const [pledgeDetail,setPledgeDetail]=useState("");
+  const [commentText,setCommentText]=useState("");
   const [pledges,setPledges]=useState([]);
   const [comments,setComments]=useState([]);
   const [supported,setSupported]=useState(false);
@@ -418,276 +543,343 @@ function ProjectCard({project,user,onRepGain}) {
   const [letter,setLetter]=useState(project.forwarded_letter||null);
   const [showLetter,setShowLetter]=useState(false);
   const [toast,setToast]=useState(null);
-  const catColor=CAT_COLORS[project.category]||'#555';
+  const catColor=CAT_COLORS[project.category]||"#555";
   const isReady=supportCount>=project.supporter_threshold;
-  const supportPct=Math.min(100,Math.round(supportCount/project.supporter_threshold*100));
+  const supportPct=Math.min(100,Math.round((supportCount/project.supporter_threshold)*100));
 
-  useEffect(()=>{if(open){loadPledges();loadComments();checkSupport();}},[open]);
+  useEffect(()=>{ if(open){ loadPledges(); loadComments(); checkSupport(); } },[open]);
 
-  const loadPledges=async()=>{const {data}=await sb.from('project_pledges').select('*').eq('project_id',project.id);if(data)setPledges(data);};
-  const loadComments=async()=>{const {data}=await sb.from('project_comments').select('*').eq('project_id',project.id).order('created_at',{ascending:false});if(data)setComments(data);};
-  const checkSupport=async()=>{if(!user)return;const {data}=await sb.from('project_supporters').select('id').eq('project_id',project.id).eq('user_id',user.id);if(data&&data.length)setSupported(true);};
+  const loadPledges=async()=>{ const {data}=await sb.from("project_pledges").select("*").eq("project_id",project.id); if(data) setPledges(data); };
+  const loadComments=async()=>{ const {data}=await sb.from("project_comments").select("*").eq("project_id",project.id).order("created_at",{ascending:false}); if(data) setComments(data); };
+  const checkSupport=async()=>{ if(!user) return; const {data}=await sb.from("project_supporters").select("id").eq("project_id",project.id).eq("user_id",user.id); if(data&&data.length) setSupported(true); };
 
   const addSupport=async()=>{
     if(!user){setToast("Sign in to support projects.");return;}
-    if(supported)return;
-    const {error}=await sb.from('project_supporters').insert({project_id:project.id,user_id:user.id});
+    if(supported) return;
+    const {error}=await sb.from("project_supporters").insert({project_id:project.id,user_id:user.id});
     if(!error){
-      await sb.from('projects').update({supporter_count:supportCount+1}).eq('id',project.id);
-      setSupportCount(c=>c+1);setSupported(true);
-      await sb.from('profiles').update({reputation:(user.reputation||0)+5}).eq('id',user.id);
-      onRepGain(5);setToast("Support added! +5 reputation");
+      await sb.from("projects").update({supporter_count:supportCount+1}).eq("id",project.id);
+      setSupportCount(c=>c+1); setSupported(true);
+      await sb.from("profiles").update({reputation:((user.reputation||0)+5)}).eq("id",user.id);
+      onRepGain(5); setToast("Support added! +5 reputation");
     }
   };
 
   const submitPledge=async()=>{
-    if(!pledgeVal.trim()||!user)return;
-    const name=user.display_name||user.email.split('@')[0];
-    const {error}=await sb.from('project_pledges').insert({project_id:project.id,user_id:user.id,display_name:name,pledge_type:pledgeType,value:pledgeVal,detail:pledgeDetail});
+    if(!pledgeVal.trim()||!user) return;
+    const name=user.display_name||user.email.split("@")[0];
+    const {error}=await sb.from("project_pledges").insert({project_id:project.id,user_id:user.id,display_name:name,pledge_type:pledgeType,value:pledgeVal,detail:pledgeDetail});
     if(!error){
       setPledges(prev=>[...prev,{display_name:name,pledge_type:pledgeType,value:pledgeVal,detail:pledgeDetail}]);
-      setPledgeVal('');setPledgeDetail('');
-      await sb.from('profiles').update({reputation:(user.reputation||0)+15}).eq('id',user.id);
-      onRepGain(15);setToast("Pledge saved! +15 reputation");
+      setPledgeVal(""); setPledgeDetail("");
+      await sb.from("profiles").update({reputation:((user.reputation||0)+15)}).eq("id",user.id);
+      onRepGain(15); setToast("Pledge saved! +15 reputation");
     }
   };
 
   const postComment=async()=>{
-    if(!commentText.trim()||!user)return;
-    const name=user.display_name||user.email.split('@')[0];
-    const {error}=await sb.from('project_comments').insert({project_id:project.id,user_id:user.id,display_name:name,content:commentText.trim()});
+    if(!commentText.trim()||!user) return;
+    const name=user.display_name||user.email.split("@")[0];
+    const {error}=await sb.from("project_comments").insert({project_id:project.id,user_id:user.id,display_name:name,content:commentText.trim()});
     if(!error){
       setComments(prev=>[{display_name:name,content:commentText.trim(),created_at:new Date().toISOString()},...prev]);
-      setCommentText('');
-      await sb.from('profiles').update({reputation:(user.reputation||0)+10}).eq('id',user.id);
-      onRepGain(10);setToast("+10 reputation!");
+      setCommentText("");
+      await sb.from("profiles").update({reputation:((user.reputation||0)+10)}).eq("id",user.id);
+      onRepGain(10); setToast("+10 reputation!");
     }
   };
 
   const generateLetter=async()=>{
-    const pledgeSummary=pledges.map(p=>p.display_name+": "+p.pledge_type+" - "+p.value).join(", ");
-    const text="Dear "+project.official_target_name+",\n\nWe, "+supportCount+" verified residents of "+project.jurisdiction+", write to formally request your support for:\n\n\""+project.title+"\"\n\n"+project.description+"\n\nOur community has already pledged: "+(pledgeSummary||"volunteer time and community support")+".\n\nThis reflects the genuine priorities of your constituents as documented through The People's Voice civic platform.\n\nWe respectfully request a response or a meeting to discuss how this project can receive official support.\n\nRespectfully,\nThe People of "+project.jurisdiction+"\nvia The People's Voice — "+SITE_URL;
-    await sb.from('projects').update({forwarded_letter:text,status:'forwarded'}).eq('id',project.id);
-    setLetter(text);setShowLetter(true);setToast("Letter generated! Project marked as forwarded.");
+    const pledgeSummary=pledges.map(p=>`${p.display_name}: ${p.pledge_type} - ${p.value}`).join(", ");
+    const text=`Dear ${project.official_target_name},\n\nWe, ${supportCount} verified residents of ${project.jurisdiction}, write to formally request your support for the following community initiative:\n\n"${project.title}"\n\n${project.description}\n\nOur community has already pledged the following resources toward this project: ${pledgeSummary||"volunteer time and community support"}.\n\nThis proposal reflects the genuine priorities of your constituents as documented through The People's Voice civic platform. We respectfully request a response or a meeting to discuss how this project can receive official support.\n\nRespectfully,\nThe People of ${project.jurisdiction}\nvia The People's Voice Civic Platform\nthekiltedfarmer.github.io`;
+    await sb.from("projects").update({forwarded_letter:text,status:"forwarded"}).eq("id",project.id);
+    setLetter(text); setShowLetter(true); setToast("Letter generated & project marked as forwarded!");
   };
 
-  return h('div',{style:{background:'#fff',borderRadius:10,border:'1px solid #e5dece',marginBottom:16,overflow:'hidden',boxShadow:'0 2px 10px rgba(0,0,0,.05)'}},
-    toast&&h(Toast,{msg:toast,onDone:()=>setToast(null)}),
-    h('div',{style:{borderLeft:'5px solid '+catColor,padding:'18px 16px'}},
-      h('div',{style:{display:'flex',gap:7,flexWrap:'wrap',marginBottom:10}},
-        h(Tag,{bg:catColor+'22',color:catColor},"🌱 "+project.category),
-        h(Tag,{bg:'#f5f5f5',color:'#555'},project.jurisdiction),
-        h(Tag,{bg:project.status==='forwarded'?'#eef7f1':'#fffbea',color:project.status==='forwarded'?'#1a6b3c':'#8a6000'},project.status==='forwarded'?"✅ Forwarded":"⏳ Gathering Support")
-      ),
-      h('h3',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:17,color:'#1a1a2e',margin:'0 0 6px',lineHeight:1.3}},project.title),
-      h('div',{style:{fontSize:12,color:'#aaa',marginBottom:10}},"Proposed by ",h('strong',{style:{color:'#5b3a8c'}},project.proposer_name)," · ",new Date(project.created_at).toLocaleDateString()),
-      h('p',{style:{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.7,color:'#444',margin:'0 0 14px'}},project.description),
-      h('div',{style:{marginBottom:14}},
-        h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:6}},
-          h('span',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:'#1a1a2e'}},"Community Support"),
-          h('span',{style:{fontSize:13,color:isReady?'#1a6b3c':'#888',fontWeight:isReady?700:400}},supportCount+" / "+project.supporter_threshold+(isReady?" ✅":""))
-        ),
-        h('div',{style:{height:12,background:'#eee',borderRadius:6,overflow:'hidden'}},
-          h('div',{style:{width:supportPct+'%',height:'100%',background:isReady?'#1a6b3c':catColor,transition:'width .5s'}})
-        )
-      ),
-      h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
-        !supported?h(Btn,{onClick:addSupport,bg:'#1a6b3c',color:'#fff'},"🤝 Add My Support"):h('div',{style:{background:'#eef7f1',border:'1px solid #c8e8d4',borderRadius:5,padding:'8px 14px',fontSize:13,color:'#1a6b3c'}},"✓ You support this"),
-        isReady&&project.status!=='forwarded'&&h(Btn,{onClick:generateLetter,bg:'#c0392b',color:'#fff'},"📨 Forward to Officials"),
-        (letter||project.status==='forwarded')&&h(Btn,{onClick:()=>setShowLetter(!showLetter),bg:'transparent',color:'#1a5c8a',border:'1px solid #1a5c8a'},"📄 "+(showLetter?"Hide":"View")+" Letter")
-      ),
-      showLetter&&letter&&h('div',{style:{marginTop:14,background:'#f0f4ff',border:'1px solid #c0d0e8',borderRadius:8,padding:16}},
-        h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:'#1a5c8a',marginBottom:10}},"📨 Letter to "+project.official_target_name),
-        h('pre',{style:{fontFamily:"'Lora',serif",fontSize:12,lineHeight:1.7,color:'#333',whiteSpace:'pre-wrap',margin:0}},letter)
-      ),
-      h('button',{onClick:()=>setOpen(!open),style:{marginTop:12,background:'transparent',border:'none',color:'#1a5c8a',fontFamily:"'Playfair Display',serif",fontSize:13,padding:0}},open?"▲ Close":"▼ Pledges & Discussion")
-    ),
-    open&&h('div',{style:{borderTop:'1px solid #e5dece',padding:'16px'}},
-      h('div',{style:{display:'flex',borderBottom:'2px solid #e5dece',marginBottom:16}},
-        [['pledges','🤲 Pledges'],['discuss','💬 Discussion']].map(([t,l])=>
-          h('button',{key:t,onClick:()=>setTab(t),style:{background:'transparent',border:'none',borderBottom:tab===t?'2px solid #1a1a2e':'none',marginBottom:-2,padding:'8px 14px',fontFamily:"'Playfair Display',serif",fontWeight:tab===t?700:400,fontSize:14,color:tab===t?'#1a1a2e':'#aaa'}},l)
-        )
-      ),
-      tab==='pledges'&&h('div',null,
-        pledges.length>0&&h('div',{style:{marginBottom:16}},
-          pledges.map((p,i)=>{const m=PLEDGE_META[p.pledge_type]||PLEDGE_META.labor;return h('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:m.bg,borderRadius:7,marginBottom:8}},
-            h('span',{style:{fontSize:18}},m.icon),
-            h('div',{style:{flex:1}},
-              h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:m.color}},p.display_name+" — "+p.value),
-              p.detail&&h('div',{style:{fontSize:12,color:'#666'}},p.detail)
-            ),
-            h('div',{style:{fontSize:11,color:m.color,fontWeight:700,textTransform:'uppercase'}},m.label)
-          );})
-        ),
-        user?h('div',{style:{background:'#faf8f3',border:'1px solid #e5dece',borderRadius:8,padding:14}},
-          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:'#1a1a2e',marginBottom:12}},"Pledge Your Contribution"),
-          h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:12}},
-            Object.entries(PLEDGE_META).map(([type,meta])=>
-              h('button',{key:type,onClick:()=>setPledgeType(type),style:{padding:'7px 11px',border:'2px solid '+(pledgeType===type?meta.color:'#ddd'),borderRadius:6,background:pledgeType===type?meta.bg:'#fff',color:pledgeType===type?meta.color:'#777',fontFamily:"'Playfair Display',serif",fontSize:12,fontWeight:pledgeType===type?700:400}},meta.icon+" "+meta.label)
-            )
-          ),
-          h('input',{value:pledgeVal,onChange:e=>setPledgeVal(e.target.value),placeholder:pledgeType==='labor'?'e.g. 4 hours on weekends':pledgeType==='skills'?'e.g. Carpentry, cooking':pledgeType==='materials'?'e.g. 10 bags of soil':'e.g. $50',style:{width:'100%',border:'1px solid #ddd',borderRadius:5,padding:'8px 10px',fontSize:13,boxSizing:'border-box',marginBottom:8}}),
-          h('input',{value:pledgeDetail,onChange:e=>setPledgeDetail(e.target.value),placeholder:'Optional details...',style:{width:'100%',border:'1px solid #ddd',borderRadius:5,padding:'8px 10px',fontSize:13,boxSizing:'border-box',marginBottom:10}}),
-          h(Btn,{onClick:submitPledge,bg:'#1a6b3c',color:'#fff'},"Pledge +15 rep →")
-        ):h('div',{style:{background:'#fff8e7',border:'1px solid #f0c040',borderRadius:8,padding:12,fontSize:13,color:'#8a6000',textAlign:'center'}},"Sign in to pledge resources.")
-      ),
-      tab==='discuss'&&h('div',null,
-        user?h('div',{style:{background:'#faf8f3',border:'1px solid #e5dece',borderRadius:8,padding:14,marginBottom:14}},
-          h('textarea',{value:commentText,onChange:e=>setCommentText(e.target.value),placeholder:'Ideas, questions, offers to help...',rows:3,style:{width:'100%',border:'1px solid #ddd',borderRadius:5,padding:'8px 10px',fontSize:13,resize:'vertical',boxSizing:'border-box'}}),
-          h('div',{style:{textAlign:'right',marginTop:8}},h(Btn,{onClick:postComment},"Post +10 rep"))
-        ):h('div',{style:{background:'#fff8e7',border:'1px solid #f0c040',borderRadius:8,padding:12,marginBottom:14,fontSize:13,color:'#8a6000',textAlign:'center'}},"Sign in to join the discussion."),
-        comments.length===0&&h('div',{style:{textAlign:'center',color:'#bbb',fontStyle:'italic',fontSize:13,padding:16}},"No discussion yet."),
-        comments.map((c,i)=>h('div',{key:i,style:{display:'flex',gap:10,marginBottom:12,paddingBottom:12,borderBottom:'1px solid #f0ece4'}},
-          h('div',{style:{width:36,height:36,borderRadius:'50%',background:'#1a1a2e',color:'#f0c040',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:14,flexShrink:0}},(c.display_name||'?')[0].toUpperCase()),
-          h('div',null,
-            h('div',{style:{fontWeight:700,fontSize:13,color:'#1a1a2e',fontFamily:"'Playfair Display',serif",marginBottom:3}},c.display_name," ",h('span',{style:{color:'#bbb',fontWeight:400,fontSize:11}},new Date(c.created_at).toLocaleDateString())),
-            h('div',{style:{fontSize:13,lineHeight:1.65,color:'#333'}},c.content)
-          )
-        ))
-      )
-    )
+  return (
+    <div style={{background:"#fff",borderRadius:10,border:"1px solid #e5dece",marginBottom:16,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.05)"}}>
+      {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
+      <div style={{borderLeft:`5px solid ${catColor}`,padding:"18px 20px"}}>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:10}}>
+          <span style={{background:catColor+"22",color:catColor,fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>🌱 {project.category}</span>
+          <span style={{background:"#f5f5f5",color:"#555",fontSize:11,padding:"3px 9px",borderRadius:20}}>{project.jurisdiction}</span>
+          <span style={{background:project.status==="forwarded"?"#eef7f1":"#fffbea",color:project.status==="forwarded"?"#1a6b3c":"#8a6000",fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>
+            {project.status==="forwarded"?"✅ Forwarded to Officials":"⏳ Gathering Support"}
+          </span>
+        </div>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:18,color:"#1a1a2e",margin:"0 0 6px",lineHeight:1.3}}>{project.title}</h3>
+        <div style={{fontSize:12,color:"#aaa",marginBottom:10}}>Proposed by <strong style={{color:"#5b3a8c"}}>{project.proposer_name}</strong> · {new Date(project.created_at).toLocaleDateString()}</div>
+        <p style={{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.75,color:"#444",margin:"0 0 16px"}}>{project.description}</p>
+        <div style={{marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <span style={{fontSize:13,fontFamily:"'Playfair Display',serif",fontWeight:700,color:"#1a1a2e"}}>Community Support</span>
+            <span style={{fontSize:13,color:isReady?"#1a6b3c":"#888",fontWeight:isReady?700:400}}>{supportCount} / {project.supporter_threshold} {isReady?"✅":""}</span>
+          </div>
+          <div style={{height:12,background:"#eee",borderRadius:6,overflow:"hidden"}}>
+            <div style={{width:`${supportPct}%`,height:"100%",background:isReady?"#1a6b3c":catColor,transition:"width 0.5s"}}/>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          {!supported?(
+            <button onClick={addSupport} style={{background:"#1a6b3c",color:"#fff",border:"none",padding:"9px 18px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13}}>🤝 Add My Support</button>
+          ):(
+            <div style={{background:"#eef7f1",border:"1px solid #c8e8d4",borderRadius:5,padding:"8px 14px",fontSize:13,color:"#1a6b3c"}}>✓ You support this</div>
+          )}
+          {isReady&&project.status!=="forwarded"&&(
+            <button onClick={generateLetter} style={{background:"#c0392b",color:"#fff",border:"none",padding:"9px 18px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13}}>📨 Forward to Officials</button>
+          )}
+          {(letter||project.status==="forwarded")&&(
+            <button onClick={()=>setShowLetter(!showLetter)} style={{background:"transparent",border:"1px solid #1a5c8a",color:"#1a5c8a",padding:"9px 14px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontSize:13}}>📄 {showLetter?"Hide":"View"} Letter</button>
+          )}
+        </div>
+        {showLetter&&letter&&(
+          <div style={{marginTop:14,background:"#f0f4ff",border:"1px solid #c0d0e8",borderRadius:8,padding:16}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a5c8a",marginBottom:10}}>📨 Letter to {project.official_target_name}</div>
+            <pre style={{fontFamily:"'Lora',serif",fontSize:13,lineHeight:1.7,color:"#333",whiteSpace:"pre-wrap",margin:0}}>{letter}</pre>
+          </div>
+        )}
+        <button onClick={()=>setOpen(!open)} style={{marginTop:12,background:"transparent",border:"none",color:"#1a5c8a",fontFamily:"'Playfair Display',serif",fontSize:13,padding:0}}>{open?"▲ Close":"▼ Pledges & Discussion"}</button>
+      </div>
+      {open&&(
+        <div style={{borderTop:"1px solid #e5dece",padding:"16px 20px"}}>
+          <div style={{display:"flex",borderBottom:"2px solid #e5dece",marginBottom:16}}>
+            {[["pledges","🤲 Pledges"],["discuss","💬 Discussion"]].map(([t,l])=>(
+              <button key={t} onClick={()=>setTab(t)} style={{background:"transparent",border:"none",borderBottom:tab===t?"2px solid #1a1a2e":"none",marginBottom:-2,padding:"8px 16px",fontFamily:"'Playfair Display',serif",fontWeight:tab===t?700:400,fontSize:14,color:tab===t?"#1a1a2e":"#aaa"}}>{l}</button>
+            ))}
+          </div>
+          {tab==="pledges"&&(
+            <div>
+              {pledges.length>0&&<div style={{marginBottom:16}}>
+                {pledges.map((p,i)=>{ const m=PLEDGE_META[p.pledge_type]||PLEDGE_META.labor; return (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:m.bg,borderRadius:7,marginBottom:8}}>
+                    <span style={{fontSize:20}}>{m.icon}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:m.color}}>{p.display_name} — {p.value}</div>
+                      {p.detail&&<div style={{fontSize:12,color:"#666"}}>{p.detail}</div>}
+                    </div>
+                    <div style={{fontSize:11,color:m.color,fontWeight:700,textTransform:"uppercase"}}>{m.label}</div>
+                  </div>
+                );})}
+              </div>}
+              {user?(
+                <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:14}}>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a1a2e",marginBottom:12}}>Pledge Your Contribution</div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+                    {Object.entries(PLEDGE_META).map(([type,meta])=>(
+                      <button key={type} onClick={()=>setPledgeType(type)} style={{padding:"8px 12px",border:`2px solid ${pledgeType===type?meta.color:"#ddd"}`,borderRadius:6,background:pledgeType===type?meta.bg:"#fff",color:pledgeType===type?meta.color:"#777",fontFamily:"'Playfair Display',serif",fontSize:12,fontWeight:pledgeType===type?700:400}}>
+                        {meta.icon} {meta.label}
+                      </button>
+                    ))}
+                  </div>
+                  <input value={pledgeVal} onChange={e=>setPledgeVal(e.target.value)} placeholder={pledgeType==="labor"?"e.g. 4 hours on weekends":pledgeType==="skills"?"e.g. Carpentry, cooking":pledgeType==="materials"?"e.g. 10 bags of soil":"e.g. $50"} style={{width:"100%",border:"1px solid #ddd",borderRadius:5,padding:"8px 10px",fontFamily:"'Lora',serif",fontSize:13,boxSizing:"border-box",marginBottom:8}}/>
+                  <input value={pledgeDetail} onChange={e=>setPledgeDetail(e.target.value)} placeholder="Optional details..." style={{width:"100%",border:"1px solid #ddd",borderRadius:5,padding:"8px 10px",fontFamily:"'Lora',serif",fontSize:13,boxSizing:"border-box",marginBottom:10}}/>
+                  <button onClick={submitPledge} style={{background:"#1a6b3c",color:"#fff",border:"none",padding:"9px 20px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,borderRadius:5}}>Pledge +15 rep →</button>
+                </div>
+              ):<div style={{background:"#fff8e7",border:"1px solid #f0c040",borderRadius:8,padding:12,fontSize:13,color:"#8a6000",textAlign:"center"}}>Sign in to pledge resources.</div>}
+            </div>
+          )}
+          {tab==="discuss"&&(
+            <div>
+              {user?(
+                <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:14,marginBottom:14}}>
+                  <textarea value={commentText} onChange={e=>setCommentText(e.target.value)} placeholder="Ideas, questions, offers to help..." rows={3} style={{width:"100%",border:"1px solid #ddd",borderRadius:5,padding:"8px 10px",fontFamily:"'Lora',serif",fontSize:13,resize:"vertical",boxSizing:"border-box"}}/>
+                  <div style={{textAlign:"right",marginTop:8}}>
+                    <button onClick={postComment} style={{background:"#1a1a2e",color:"#f0c040",border:"none",padding:"8px 18px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,borderRadius:5}}>Post +10 rep</button>
+                  </div>
+                </div>
+              ):<div style={{background:"#fff8e7",border:"1px solid #f0c040",borderRadius:8,padding:12,marginBottom:14,fontSize:13,color:"#8a6000",textAlign:"center"}}>Sign in to join the discussion.</div>}
+              {comments.length===0&&<div style={{textAlign:"center",color:"#bbb",fontStyle:"italic",fontSize:13,padding:16}}>No discussion yet.</div>}
+              {comments.map((c,i)=>(
+                <div key={i} style={{display:"flex",gap:10,marginBottom:12,paddingBottom:12,borderBottom:"1px solid #f0ece4"}}>
+                  <div style={{width:36,height:36,borderRadius:"50%",background:"#1a1a2e",color:"#f0c040",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,flexShrink:0}}>{(c.display_name||"?")[0].toUpperCase()}</div>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:13,color:"#1a1a2e",fontFamily:"'Playfair Display',serif",marginBottom:3}}>{c.display_name} <span style={{color:"#bbb",fontWeight:400,fontSize:11}}>{new Date(c.created_at).toLocaleDateString()}</span></div>
+                    <div style={{fontSize:13,lineHeight:1.65,color:"#333",fontFamily:"'Lora',serif"}}>{c.content}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
-// ── Propose Modal ─────────────────────────────────────────────────────────────
-function ProposeModal({onClose,onSubmit}) {
-  const [form,setForm]=useState({title:'',desc:'',cat:'Food Security',juris:'Village of Concord',target:'',threshold:'25'});
-  const set=k=>e=>setForm(f=>({...f,[k]:e.target.value}));
-  const submit=()=>{if(!form.title.trim()||!form.desc.trim())return;onSubmit({title:form.title,description:form.desc,category:form.cat,jurisdiction:form.juris,official_target_name:form.target||'Village Council, Village of Concord',supporter_threshold:parseInt(form.threshold)||25});onClose();};
-  return h('div',{style:{position:'fixed',inset:0,background:'rgba(10,10,20,.85)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}},
-    h('div',{style:{background:'#fff',borderRadius:14,padding:28,width:500,maxWidth:'100%',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 30px 80px rgba(0,0,0,.4)'}},
-      h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:20,color:'#1a1a2e',marginBottom:4}},"Propose a Community Project"),
-      h('div',{style:{fontFamily:"'Lora',serif",fontSize:13,color:'#888',marginBottom:18}},"Your reputation qualifies you to submit. Make it count."),
-      ['title','desc'].map(k=>h('div',{key:k,style:{marginBottom:14}},
-        h('label',{style:{fontSize:12,color:'#888',textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}},k==='title'?'Project Title *':'Description *'),
-        k==='desc'?h('textarea',{value:form[k],onChange:set(k),placeholder:"What's the idea? Who does it help?",rows:4,style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 12px',fontSize:14,boxSizing:'border-box',resize:'vertical'}}):
-        h('input',{value:form[k],onChange:set(k),placeholder:'e.g. Community Tool Library on Main Street',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 12px',fontSize:14,boxSizing:'border-box'}})
-      )),
-      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}},
-        h('div',null,h('label',{style:{fontSize:12,color:'#888',textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}},"Category"),h('select',{value:form.cat,onChange:set('cat'),style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'9px 10px',fontSize:13}},Object.keys(CAT_COLORS).map(c=>h('option',{key:c},c)))),
-        h('div',null,h('label',{style:{fontSize:12,color:'#888',textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}},"Jurisdiction"),h('select',{value:form.juris,onChange:set('juris'),style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'9px 10px',fontSize:13}},['Village of Concord','City of Jackson','Summit Township','Jackson County'].map(j=>h('option',{key:j},j))))
-      ),
-      h('div',{style:{marginBottom:14}},
-        h('label',{style:{fontSize:12,color:'#888',textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}},"Forward to Official"),
-        h('input',{value:form.target,onChange:set('target'),placeholder:'e.g. Village President, Village of Concord',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 12px',fontSize:14,boxSizing:'border-box'}})
-      ),
-      h('div',{style:{marginBottom:20}},
-        h('label',{style:{fontSize:12,color:'#888',textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:4}},"Supporters needed to forward"),
-        h('input',{value:form.threshold,onChange:set('threshold'),type:'number',min:5,max:500,style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 12px',fontSize:14,boxSizing:'border-box'}})
-      ),
-      h('div',{style:{display:'flex',gap:10}},
-        h('button',{onClick:submit,style:{flex:1,background:'#1a6b3c',color:'#fff',border:'none',padding:'12px',borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15}},"Submit Proposal →"),
-        h('button',{onClick:onClose,style:{background:'transparent',border:'1px solid #ddd',color:'#aaa',padding:'12px 18px',borderRadius:7,fontSize:14}},"Cancel")
-      )
-    )
+// ─── Propose Modal ────────────────────────────────────────────────────────────
+function ProposeModal({onClose, onSubmit}) {
+  const [title,setTitle]=useState("");
+  const [desc,setDesc]=useState("");
+  const [cat,setCat]=useState("Food Security");
+  const [juris,setJuris]=useState("Village of Concord");
+  const [target,setTarget]=useState("");
+  const [threshold,setThreshold]=useState("25");
+  const submit=()=>{ if(!title.trim()||!desc.trim()) return; onSubmit({title,description:desc,category:cat,jurisdiction:juris,official_target_name:target||"Village Council, Village of Concord",supporter_threshold:parseInt(threshold)||25}); onClose(); };
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(10,10,20,0.8)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"#fff",borderRadius:14,padding:32,width:520,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 30px 80px rgba(0,0,0,0.4)"}}>
+        <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:22,color:"#1a1a2e",marginBottom:4}}>Propose a Community Project</div>
+        <div style={{fontFamily:"'Lora',serif",fontSize:13,color:"#888",marginBottom:20}}>Your reputation qualifies you to submit. Make it count.</div>
+        {[["Project Title *",title,setTitle,"e.g. Community Tool Library on Main Street"],["Description *",desc,setDesc,"What's the idea? Who does it help? How would it work?"],["Forward to Official",target,setTarget,"e.g. Village President, Village of Concord"]].map(([lbl,val,setter,ph],i)=>(
+          <div key={i} style={{marginBottom:14}}>
+            <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>{lbl}</label>
+            {lbl.includes("Desc")?<textarea value={val} onChange={e=>setter(e.target.value)} placeholder={ph} rows={4} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 12px",fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box",resize:"vertical"}}/>
+            :<input value={val} onChange={e=>setter(e.target.value)} placeholder={ph} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 12px",fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box"}}/>}
+          </div>
+        ))}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+          <div>
+            <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>Category</label>
+            <select value={cat} onChange={e=>setCat(e.target.value)} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"9px 10px",fontFamily:"'Lora',serif",fontSize:13}}>
+              {Object.keys(CAT_COLORS).map(c=><option key={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>Jurisdiction</label>
+            <select value={juris} onChange={e=>setJuris(e.target.value)} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"9px 10px",fontFamily:"'Lora',serif",fontSize:13}}>
+              {["Village of Concord","City of Jackson","Summit Township","Jackson County"].map(j=><option key={j}>{j}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>Supporters needed to forward</label>
+          <input value={threshold} onChange={e=>setThreshold(e.target.value)} type="number" min="5" max="500" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 12px",fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box"}}/>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={submit} style={{flex:1,background:"#1a6b3c",color:"#fff",border:"none",padding:"12px",borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15}}>Submit Proposal →</button>
+          <button onClick={onClose} style={{background:"transparent",border:"1px solid #ddd",color:"#aaa",padding:"12px 20px",borderRadius:7,fontSize:14}}>Cancel</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
-// ── Auth Screen ───────────────────────────────────────────────────────────────
+// ─── Auth Screen ──────────────────────────────────────────────────────────────
 function AuthScreen({onAuth}) {
-  const [mode,setMode]=useState('login');
-  const [email,setEmail]=useState('');
-  const [pass,setPass]=useState('');
-  const [name,setName]=useState('');
-  const [zip,setZip]=useState('');
-  const [error,setError]=useState('');
+  const [mode,setMode]=useState("login"); // login | signup
+  const [email,setEmail]=useState("");
+  const [pass,setPass]=useState("");
+  const [name,setName]=useState("");
+  const [zip,setZip]=useState("");
+  const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
 
-  const community=ZIP_COMMUNITY[zip.trim()]||null;
-  const zipValid=VALID_ZIPS.includes(zip.trim());
-
   const handleSignup=async()=>{
-    if(!zipValid){setError("Please enter a valid ZIP code for your area. Jackson County examples: 49237 (Concord), 49201-49203 (Jackson), 49230 (Brooklyn), 49240 (Grass Lake), 49283 (Spring Arbor).");return;}
+    const zipTrimmed = zip.trim();
+    const uniqueZips = [...new Set(VALID_ZIPS)];
+    if(!uniqueZips.includes(zipTrimmed)){
+      setError("Please enter a valid Jackson County ZIP code. Examples: 49237 (Concord), 49201-49203 (Jackson), 49230 (Brooklyn), 49240 (Grass Lake), 49283 (Spring Arbor), 49284 (Springport).");
+      return;
+    }
     if(pass.length<6){setError("Password must be at least 6 characters.");return;}
-    setLoading(true);setError('');
-    const {data,error:err}=await sb.auth.signUp({email,password:pass,options:{data:{display_name:name||email.split('@')[0],zip}}});
+    setLoading(true); setError("");
+    const {data,error:err}=await sb.auth.signUp({email,password:pass,options:{data:{display_name:name||email.split("@")[0],zip}}});
     if(err){setError(err.message);setLoading(false);return;}
     if(data.user){
-      await sb.from('profiles').upsert({id:data.user.id,email,display_name:name||email.split('@')[0],zip,verified_method:'email'});
-      onAuth(data.user,{display_name:name||email.split('@')[0],zip,reputation:0});
+      await sb.from("profiles").upsert({id:data.user.id,email,display_name:name||email.split("@")[0],zip,verified_method:"email"});
+      onAuth(data.user,{display_name:name||email.split("@")[0],zip,reputation:0});
     }
     setLoading(false);
   };
 
   const handleLogin=async()=>{
-    setLoading(true);setError('');
+    setLoading(true); setError("");
     const {data,error:err}=await sb.auth.signInWithPassword({email,password:pass});
     if(err){setError(err.message);setLoading(false);return;}
     if(data.user){
-      const {data:prof}=await sb.from('profiles').select('*').eq('id',data.user.id).single();
-      onAuth(data.user,prof||{});
+      const {data:profile}=await sb.from("profiles").select("*").eq("id",data.user.id).single();
+      onAuth(data.user,profile||{});
     }
     setLoading(false);
   };
 
-  return h('div',{style:{minHeight:'100vh',background:'#1a1a2e',display:'flex',alignItems:'center',justifyContent:'center',padding:16}},
-    h('div',{style:{background:'#fff',borderRadius:14,padding:32,width:420,maxWidth:'100%',boxShadow:'0 30px 80px rgba(0,0,0,.5)'}},
-      h('div',{style:{textAlign:'center',marginBottom:20}},
-        h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:30,color:'#1a1a2e',letterSpacing:-1,lineHeight:1.1}},"The People's",h('br'),"Voice"),
-        h('div',{style:{marginTop:10,fontSize:11,color:'#5b3a8c',background:'#f0ebf8',padding:'4px 14px',borderRadius:20,display:'inline-block',fontWeight:700,letterSpacing:1,textTransform:'uppercase'}},"Vote · Build · Change"),
-        h('div',{style:{marginTop:14,background:'#f8f6f0',borderRadius:10,padding:'14px 14px',textAlign:'left'}},
-          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:'#1a1a2e',marginBottom:10}},"What is The People's Voice?"),
-          [
-            ["🗳","Vote on real local, state & federal bills — and see how your representatives voted vs. your community"],
-            ["📨","Email your elected officials directly from any bill, with your vote and the community data attached"],
-            ["🌱","Propose community projects, pledge your resources, and forward ideas directly to officials"],
-            ["💬","Discuss issues with verified neighbors in your community"],
-            ["⚖️","Get plain-language AI breakdowns of legislation — factual, balanced, no spin"],
-            ["📣","Share your vote to social media when you choose — anonymously or publicly"],
-          ].map(([icon,text])=>h('div',{key:icon,style:{display:'flex',gap:8,alignItems:'flex-start',marginBottom:7}},
-            h('span',{style:{fontSize:15,flexShrink:0,marginTop:1}},icon),
-            h('span',{style:{fontFamily:"'Lora',serif",fontSize:12,color:'#555',lineHeight:1.6}},text)
-          )),
-          h('div',{style:{marginTop:10,paddingTop:10,borderTop:'1px solid #e5dece',fontSize:11,color:'#aaa',lineHeight:1.6}},
-            "⚖️ Nonpartisan · Independent · Not affiliated with any government, party, or elected official.",h('br'),
-            h('strong',null,"Your votes are unofficial — but your voice is real.")
-          )
-        )
-      ),
-      h('div',{style:{display:'flex',marginBottom:16,border:'1px solid #eee',borderRadius:8,overflow:'hidden'}},
-        [['login','Sign In'],['signup','Create Account']].map(([m,l])=>
-          h('button',{key:m,onClick:()=>{setMode(m);setError('');},style:{flex:1,padding:'10px',background:mode===m?'#1a1a2e':'#fff',color:mode===m?'#f0c040':'#555',border:'none',fontFamily:"'Playfair Display',serif",fontWeight:mode===m?700:400,fontSize:14}},l)
-        )
-      ),
-      mode==='signup'&&h('input',{value:name,onChange:e=>setName(e.target.value),placeholder:'Your name (optional)',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',marginBottom:10,fontSize:14,boxSizing:'border-box'}}),
-      h('input',{value:email,onChange:e=>setEmail(e.target.value),placeholder:'Email address',type:'email',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',marginBottom:10,fontSize:14,boxSizing:'border-box'}}),
-      h('input',{value:pass,onChange:e=>setPass(e.target.value),placeholder:mode==='signup'?'Password (min 6 characters)':'Password',type:'password',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',marginBottom:10,fontSize:14,boxSizing:'border-box'}}),
-      mode==='signup'&&h(Fragment,null,
-        h('input',{value:zip,onChange:e=>setZip(e.target.value),placeholder:'Your ZIP code',style:{width:'100%',border:'1px solid #ddd',borderRadius:6,padding:'10px 13px',marginBottom:4,fontSize:14,boxSizing:'border-box'}}),
-        community&&h('div',{style:{fontSize:12,color:'#1a6b3c',marginBottom:8,paddingLeft:4}},"✓ "+community+" — welcome!"),
-        zip.trim().length===5&&!zipValid&&h('div',{style:{fontSize:12,color:'#c0392b',marginBottom:8,paddingLeft:4}},"ZIP not recognized. Try a nearby ZIP or contact us."),
-        (!zip.trim()||zip.trim().length!==5)&&h('div',{style:{marginBottom:8}})
-      ),
-      error&&h('div',{style:{background:'#fdf0ef',border:'1px solid #f0c0b8',borderRadius:6,padding:'10px 12px',marginBottom:12,fontSize:13,color:'#c0392b'}},error),
-      h('button',{onClick:mode==='signup'?handleSignup:handleLogin,disabled:loading,style:{width:'100%',background:loading?'#ccc':'#1a1a2e',color:'#f0c040',border:'none',padding:'13px',borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15}},
-        loading?h(Spinner):mode==='signup'?'Create My Account →':'Sign In →'
-      ),
-      mode==='signup'&&h('div',{style:{marginTop:10,fontSize:11,color:'#aaa',textAlign:'center',lineHeight:1.6}},"By creating an account you agree to use this platform for legitimate civic engagement.")
-    )
+  return (
+    <div style={{minHeight:"100vh",background:"#1a1a2e",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"#fff",borderRadius:14,padding:40,width:420,maxWidth:"100%",boxShadow:"0 30px 80px rgba(0,0,0,0.5)"}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:11,color:"#bbb",letterSpacing:3,textTransform:"uppercase",marginBottom:8}}>Jackson County, Michigan</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:30,color:"#1a1a2e",letterSpacing:-1,lineHeight:1.1}}>The People's<br/>Voice</div>
+          <div style={{marginTop:10,fontSize:11,color:"#5b3a8c",background:"#f0ebf8",padding:"4px 14px",borderRadius:20,display:"inline-block",fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Vote · Build · Change</div>
+
+          <div style={{marginTop:16,background:"#f8f6f0",borderRadius:10,padding:"14px 16px",textAlign:"left"}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a1a2e",marginBottom:8}}>What is The People's Voice?</div>
+            <div style={{fontFamily:"'Lora',serif",fontSize:13,color:"#444",lineHeight:1.75}}>
+              A free, independent platform where citizens can:
+            </div>
+            <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:6}}>
+              {[
+                ["🗳","Vote on real local, state & federal bills — and see how your representatives voted vs. how your community voted"],
+                ["📨","Email your elected officials directly from any bill or proposal — your voice, delivered"],
+                ["🌱","Propose community projects, pledge your time, skills or resources, and send your ideas to the people in power"],
+                ["💬","Discuss issues with verified neighbors in your community"],
+                ["⚖️","Get plain-language AI breakdowns of legislation — factual, balanced, no spin"],
+                ["📣","Share your vote to social media and show your community where you stand"],
+              ].map(([icon,text])=>(
+                <div key={icon} style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                  <span style={{fontSize:15,flexShrink:0,marginTop:2}}>{icon}</span>
+                  <span style={{fontFamily:"'Lora',serif",fontSize:12,color:"#555",lineHeight:1.6}}>{text}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #e5dece",fontSize:11,color:"#aaa",fontFamily:"'Lora',serif",lineHeight:1.6}}>
+              ⚖️ Nonpartisan · Independent · Not affiliated with any government, party, or elected official.<br/>
+              Your votes are unofficial — but your voice is real.
+            </div>
+          </div>
+        </div>
+
+        <div style={{display:"flex",marginBottom:20,border:"1px solid #eee",borderRadius:8,overflow:"hidden"}}>
+          {[["login","Sign In"],["signup","Create Account"]].map(([m,l])=>(
+            <button key={m} onClick={()=>{setMode(m);setError("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a2e":"#fff",color:mode===m?"#f0c040":"#555",border:"none",fontFamily:"'Playfair Display',serif",fontWeight:mode===m?700:400,fontSize:14}}>{l}</button>
+          ))}
+        </div>
+
+        {mode==="signup"&&<input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name (optional)" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 13px",marginBottom:10,fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box"}}/>}
+        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email address" type="email" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 13px",marginBottom:10,fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box"}}/>
+        <input value={pass} onChange={e=>setPass(e.target.value)} placeholder={mode==="signup"?"Password (min 6 characters)":"Password"} type="password" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 13px",marginBottom:10,fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box"}}/>
+        {mode==="signup"&&<>
+          <input value={zip} onChange={e=>setZip(e.target.value)} placeholder="Your ZIP code (Jackson County)" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 13px",marginBottom:4,fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box"}}/>
+          {ZIP_COMMUNITY[zip.trim()]&&<div style={{fontSize:12,color:"#1a6b3c",marginBottom:10,fontFamily:"'Lora',serif",paddingLeft:4}}>✓ {ZIP_COMMUNITY[zip.trim()]}, Jackson County MI</div>}
+          {zip.trim().length===5&&!ZIP_COMMUNITY[zip.trim()]&&<div style={{fontSize:12,color:"#c0392b",marginBottom:10,fontFamily:"'Lora',serif",paddingLeft:4}}>ZIP not found in Jackson County</div>}
+          {(!zip.trim()||zip.trim().length!==5)&&<div style={{marginBottom:10}}/>}
+        </>}
+
+        {error&&<div style={{background:"#fdf0ef",border:"1px solid #f0c0b8",borderRadius:6,padding:"10px 12px",marginBottom:12,fontSize:13,color:"#c0392b",fontFamily:"'Lora',serif"}}>{error}</div>}
+
+        <button onClick={mode==="signup"?handleSignup:handleLogin} disabled={loading} style={{width:"100%",background:loading?"#ccc":"#1a1a2e",color:"#f0c040",border:"none",padding:"13px",borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15}}>
+          {loading?<Spinner/>:mode==="signup"?"Create My Account →":"Sign In →"}
+        </button>
+
+        {mode==="signup"&&<div style={{marginTop:12,fontSize:11,color:"#aaa",textAlign:"center",lineHeight:1.6}}>
+          By creating an account you agree to use this platform for legitimate civic engagement. Jackson County residents only.
+        </div>}
+      </div>
+    </div>
   );
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────────
+// ─── Main App ─────────────────────────────────────────────────────────────────
 function App() {
   const [user,setUser]=useState(null);
   const [profile,setProfile]=useState(null);
   const [rep,setRep]=useState(0);
-  const [mainTab,setMainTab]=useState('bills');
+  const [mainTab,setMainTab]=useState("bills");
   const [bills,setBills]=useState([]);
   const [projects,setProjects]=useState([]);
-  const [billFilter,setBillFilter]=useState('all');
+  const [billFilter,setBillFilter]=useState("all");
   const [userVotes,setUserVotes]=useState({});
   const [showPropose,setShowPropose]=useState(false);
   const [loading,setLoading]=useState(true);
   const [toast,setToast]=useState(null);
 
-  useEffect(()=>{initApp();},[]);
+  useEffect(()=>{ initApp(); },[]);
 
   const initApp=async()=>{
+    // Check existing session
     const {data:{session}}=await sb.auth.getSession();
     if(session?.user){
-      const {data:prof}=await sb.from('profiles').select('*').eq('id',session.user.id).single();
-      setUser({...session.user,...(prof||{})});setProfile(prof||{});setRep(prof?.reputation||0);
+      const {data:prof}=await sb.from("profiles").select("*").eq("id",session.user.id).single();
+      setUser(session.user); setProfile(prof||{}); setRep(prof?.reputation||0);
       loadUserVotes(session.user.id);
     }
     await loadBills();
@@ -696,146 +888,187 @@ function App() {
   };
 
   const loadBills=async()=>{
-    let {data}=await sb.from('bills').select('*').order('created_at');
-    if(!data||!data.length){await sb.from('bills').upsert(SEED_BILLS);data=SEED_BILLS;}
+    let {data}=await sb.from("bills").select("*").order("created_at");
+    if(!data||data.length===0){
+      // Seed bills on first load
+      await sb.from("bills").upsert(SEED_BILLS);
+      data=SEED_BILLS;
+    }
     setBills(data);
   };
-  const loadProjects=async()=>{const {data}=await sb.from('projects').select('*').order('created_at',{ascending:false});if(data)setProjects(data);};
-  const loadUserVotes=async(uid)=>{const {data}=await sb.from('user_votes').select('*').eq('user_id',uid);if(data){const v={};data.forEach(d=>{v[d.bill_id]={choice:d.choice,anonymous:d.anonymous};});setUserVotes(v);}};
 
-  const handleAuth=(authUser,prof)=>{setUser({...authUser,...prof});setProfile(prof);setRep(prof?.reputation||0);loadUserVotes(authUser.id);};
-  const handleVoteCast=(billId,choice,anon)=>{setUserVotes(prev=>({...prev,[billId]:{choice,anonymous:anon}}));setBills(prev=>prev.map(b=>b.id!==billId?b:{...b,['votes_'+choice]:b['votes_'+choice]+1}));};
-  const gainRep=pts=>{setRep(r=>r+pts);if(user)setUser(u=>({...u,reputation:(u.reputation||0)+pts}));};
-  const handlePropose=async(data)=>{
-    if(!user)return;
-    const name=profile?.display_name||user.email.split('@')[0];
-    const {data:proj,error}=await sb.from('projects').insert({...data,proposer_id:user.id,proposer_name:name,supporter_count:1}).select().single();
-    if(!error&&proj){await sb.from('project_supporters').insert({project_id:proj.id,user_id:user.id});setProjects(prev=>[proj,...prev]);gainRep(10);setToast("Project submitted! +10 rep");}
+  const loadProjects=async()=>{
+    const {data}=await sb.from("projects").select("*").order("created_at",{ascending:false});
+    if(data) setProjects(data);
   };
-  const handleSignOut=async()=>{await sb.auth.signOut();setUser(null);setProfile(null);setRep(0);setUserVotes({});};
 
-  if(loading)return h('div',{style:{minHeight:'100vh',background:'#1a1a2e',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16}},h(Spinner),h('div',{style:{color:'#f0c040',fontFamily:"'Playfair Display',serif",fontSize:18}},"Loading The People's Voice..."));
-  if(!user)return h(AuthScreen,{onAuth:handleAuth});
+  const loadUserVotes=async(userId)=>{
+    const {data}=await sb.from("user_votes").select("*").eq("user_id",userId);
+    if(data){ const v={}; data.forEach(d=>{ v[d.bill_id]={choice:d.choice,anonymous:d.anonymous}; }); setUserVotes(v); }
+  };
+
+  const handleAuth=(authUser,prof)=>{ setUser(authUser); setProfile(prof); setRep(prof?.reputation||0); loadUserVotes(authUser.id); };
+
+  const handleVoteCast=(billId,choice,anon)=>{
+    setUserVotes(prev=>({...prev,[billId]:{choice,anonymous:anon}}));
+    setBills(prev=>prev.map(b=>b.id!==billId?b:{...b,[`votes_${choice}`]:b[`votes_${choice}`]+1}));
+  };
+
+  const gainRep=(pts)=>{ setRep(r=>r+pts); };
+
+  const handlePropose=async(data)=>{
+    if(!user) return;
+    const name=profile?.display_name||user.email.split("@")[0];
+    const {data:proj,error}=await sb.from("projects").insert({...data,proposer_id:user.id,proposer_name:name,supporter_count:1}).select().single();
+    if(!error&&proj){
+      await sb.from("project_supporters").insert({project_id:proj.id,user_id:user.id});
+      setProjects(prev=>[proj,...prev]);
+      gainRep(10);
+      setToast("Project submitted! +10 reputation");
+    }
+  };
+
+  const handleSignOut=async()=>{ await sb.auth.signOut(); setUser(null); setProfile(null); setRep(0); setUserVotes({}); };
+
+  if(loading) return <div style={{minHeight:"100vh",background:"#1a1a2e",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}><Spinner/><div style={{color:"#f0c040",fontFamily:"'Playfair Display',serif",fontSize:18}}>Loading The People's Voice...</div></div>;
+  if(!user) return <AuthScreen onAuth={handleAuth}/>;
 
   const repInfo=repLevel(rep);
   const canPropose=rep>=REP_TO_PROPOSE;
-  const filteredBills=billFilter==='all'?bills:bills.filter(b=>b.level===billFilter);
+  const filteredBills=billFilter==="all"?bills:bills.filter(b=>b.level===billFilter);
   const totalVotes=bills.reduce((a,b)=>a+b.votes_yes+b.votes_no+b.votes_abstain,0);
-  const displayName=profile?.display_name||user.email.split('@')[0];
+  const displayName=profile?.display_name||user.email.split("@")[0];
 
-  return h('div',{style:{minHeight:'100vh',background:'#f4f1ea'}},
-    toast&&h(Toast,{msg:toast,onDone:()=>setToast(null)}),
-    showPropose&&h(ProposeModal,{onClose:()=>setShowPropose(false),onSubmit:handlePropose}),
+  return (
+    <div style={{minHeight:"100vh",background:"#f4f1ea"}}>
+      {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
+      {showPropose&&<ProposeModal onClose={()=>setShowPropose(false)} onSubmit={handlePropose}/>}
 
-    // Header
-    h('div',{style:{background:'#1a1a2e',borderBottom:'4px solid #f0c040'}},
-      h('div',{style:{maxWidth:900,margin:'0 auto',padding:'14px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}},
-        h('div',null,
-          h('div',{style:{fontSize:10,color:'#8899aa',letterSpacing:3,textTransform:'uppercase',marginBottom:2}},"Civic Engagement Platform"),
-          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:22,color:'#f0c040',letterSpacing:-.5}},"The People's Voice")
-        ),
-        h('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},
-          h('div',{style:{background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.1)',borderRadius:8,padding:'7px 12px',textAlign:'center'}},
-            h('div',{style:{fontSize:10,color:'#8899aa',textTransform:'uppercase',letterSpacing:1,marginBottom:2}},"Reputation"),
-            h('div',{style:{display:'flex',alignItems:'center',gap:5}},
-              h('span',{style:{fontSize:16}},repInfo.icon),
-              h('div',null,
-                h('div',{style:{color:'#f0c040',fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14}},rep+" pts"),
-                h('div',{style:{color:repInfo.color,fontSize:10,fontWeight:600}},repInfo.label)
-              )
-            ),
-            !canPropose&&h('div',{style:{fontSize:10,color:'#8899aa',marginTop:2}},REP_TO_PROPOSE-rep+" more to propose"),
-            canPropose&&h('div',{style:{fontSize:10,color:'#f0c040',marginTop:2}},"✓ Can propose")
-          ),
-          h('div',{style:{textAlign:'right'}},
-            h('div',{style:{color:'#fff',fontSize:12,fontFamily:"'Playfair Display',serif"}},displayName),
-            h('div',{style:{color:'#f0c040',fontSize:10}},"✓ Verified · ZIP "+(profile?.zip||'')),
-            h('button',{onClick:handleSignOut,style:{background:'transparent',border:'none',color:'#8899aa',fontSize:11,cursor:'pointer',marginTop:2,fontFamily:"'Lora',serif'"}},"\ud83d\udeaa Sign out")
-          )
-        )
-      ),
-      // Stats bar
-      h('div',{style:{background:'rgba(255,255,255,.04)',borderTop:'1px solid rgba(255,255,255,.06)'}},
-        h('div',{style:{maxWidth:900,margin:'0 auto',padding:'7px 16px',display:'flex',gap:20,flexWrap:'wrap'}},
-          [["Bills",bills.length],["Votes",totalVotes.toLocaleString()],["Projects",projects.length],["Your Rep",rep+" pts"]].map(([l,v])=>
-            h('div',{key:l},h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:900,color:'#f0c040'}},v),h('div',{style:{fontSize:10,color:'#8899aa',textTransform:'uppercase',letterSpacing:1}},l))
-          )
-        )
-      ),
-      // Tabs
-      h('div',{style:{maxWidth:900,margin:'0 auto',padding:'0 16px',display:'flex'}},
-        [['bills','🗳 Bills'],['projects','🌱 Projects'],['reps','🏛 Reps']].map(([t,l])=>
-          h('button',{key:t,onClick:()=>setMainTab(t),style:{background:'transparent',border:'none',borderBottom:mainTab===t?'3px solid #f0c040':'3px solid transparent',padding:'11px 14px',fontFamily:"'Playfair Display',serif",fontWeight:mainTab===t?700:400,fontSize:13,color:mainTab===t?'#f0c040':'#8899aa'}},l)
-        )
-      )
-    ),
+      {/* Header */}
+      <div style={{background:"#1a1a2e",borderBottom:"4px solid #f0c040"}}>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
+          <div>
+            <div style={{fontSize:10,color:"#8899aa",letterSpacing:3,textTransform:"uppercase",marginBottom:3}}>Jackson County, Michigan</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:24,color:"#f0c040",letterSpacing:-0.5}}>The People's Voice</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <div style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 14px",textAlign:"center"}}>
+              <div style={{fontSize:10,color:"#8899aa",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Reputation</div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:18}}>{repInfo.icon}</span>
+                <div>
+                  <div style={{color:"#f0c040",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15}}>{rep} pts</div>
+                  <div style={{color:repInfo.color,fontSize:11,fontWeight:600}}>{repInfo.label}</div>
+                </div>
+              </div>
+              {!canPropose&&<div style={{fontSize:10,color:"#8899aa",marginTop:4}}>{REP_TO_PROPOSE-rep} more to propose</div>}
+              {canPropose&&<div style={{fontSize:10,color:"#f0c040",marginTop:4}}>✓ Can propose</div>}
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{color:"#fff",fontSize:13,fontFamily:"'Playfair Display',serif"}}>{displayName}</div>
+              <div style={{color:"#f0c040",fontSize:11}}>✓ Verified · ZIP {profile?.zip}</div>
+              <button onClick={handleSignOut} style={{background:"transparent",border:"none",color:"#8899aa",fontSize:11,cursor:"pointer",marginTop:2}}>Sign out</button>
+            </div>
+          </div>
+        </div>
 
-    // Body
-    h('div',{style:{maxWidth:900,margin:'0 auto',padding:'14px 14px 60px'}},
+        {/* Stats */}
+        <div style={{background:"rgba(255,255,255,0.04)",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{maxWidth:900,margin:"0 auto",padding:"8px 20px",display:"flex",gap:24,flexWrap:"wrap"}}>
+            {[["Active Bills",bills.length],["Total Votes",totalVotes.toLocaleString()],["Live Projects",projects.length],["Your Rep",`${rep} pts`]].map(([l,v])=>(
+              <div key={l}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:900,color:"#f0c040"}}>{v}</div>
+                <div style={{fontSize:10,color:"#8899aa",textTransform:"uppercase",letterSpacing:1}}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      // Bills tab
-      mainTab==='bills'&&h(Fragment,null,
-        h('div',{style:{display:'flex',gap:7,flexWrap:'wrap',marginBottom:14,alignItems:'center'}},
-          h('span',{style:{fontSize:12,color:'#aaa'}},"Filter:"),
-          [['all','All'],['village','🏘 Concord'],['city','🏙 Jackson'],['township','🌾 Township'],['state','🏛 State']].map(([v,l])=>
-            h('button',{key:v,onClick:()=>setBillFilter(v),style:{background:billFilter===v?'#1a1a2e':'#fff',color:billFilter===v?'#f0c040':'#555',border:'1px solid '+(billFilter===v?'#1a1a2e':'#ddd'),padding:'6px 12px',borderRadius:20,fontFamily:"'Playfair Display',serif",fontSize:12,fontWeight:billFilter===v?700:400}},l)
-          ),
-          h('div',{style:{marginLeft:'auto',fontSize:12,color:'#aaa'}},filteredBills.length+" bill"+(filteredBills.length!==1?'s':''))
-        ),
-        filteredBills.length===0&&h('div',{style:{textAlign:'center',padding:40,color:'#aaa',fontStyle:'italic'}},"Loading bills..."),
-        filteredBills.map(bill=>h(BillCard,{key:bill.id,bill,user:{...user,reputation:rep},userVotes,onVoteCast:handleVoteCast,onRepGain:gainRep}))
-      ),
+        {/* Tabs */}
+        <div style={{maxWidth:900,margin:"0 auto",padding:"0 20px",display:"flex"}}>
+          {[["bills","🗳 Bills"],["projects","🌱 Projects"],["reps","🏛 Reps"]].map(([t,l])=>(
+            <button key={t} onClick={()=>setMainTab(t)} style={{background:"transparent",border:"none",borderBottom:mainTab===t?"3px solid #f0c040":"3px solid transparent",padding:"12px 18px",fontFamily:"'Playfair Display',serif",fontWeight:mainTab===t?700:400,fontSize:14,color:mainTab===t?"#f0c040":"#8899aa"}}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      // Projects tab
-      mainTab==='projects'&&h(Fragment,null,
-        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,flexWrap:'wrap',gap:10}},
-          h('div',null,
-            h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:19,color:'#1a1a2e'}},"Community Projects"),
-            h('div',{style:{fontFamily:"'Lora',serif",fontSize:13,color:'#888',marginTop:2}},"Propose. Pledge. Build. Forward to power.")
-          ),
-          canPropose?h('button',{onClick:()=>setShowPropose(true),style:{background:'#1a6b3c',color:'#fff',border:'none',padding:'10px 18px',borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13}},"+  Propose a Project"):
-          h('div',{style:{background:'#faf8f3',border:'1px solid #e5dece',borderRadius:7,padding:'10px 14px',fontSize:12,color:'#888',textAlign:'center'}},
-            h('div',{style:{fontWeight:600,color:'#5b3a8c',marginBottom:2}},repInfo.icon+" "+repInfo.label),
-            "Earn ",h('strong',null,REP_TO_PROPOSE-rep+" more rep")," to propose",h('br'),h('span',{style:{fontSize:11}},"Vote (+5) · Comment (+10) · Pledge (+15)")
-          )
-        ),
-        h('div',{style:{background:'#faf8f3',border:'1px solid #e5dece',borderRadius:8,padding:'10px 14px',marginBottom:14,display:'flex',gap:12,flexWrap:'wrap',alignItems:'center'}},
-          h('span',{style:{fontSize:12,color:'#888',fontStyle:'italic'}},"Earn rep:"),
-          [["🗳 Vote","+5"],["💬 Comment","+10"],["🤲 Pledge","+15"],["🌱 Propose","50 req"]].map(([l,v])=>
-            h('div',{key:l,style:{display:'flex',alignItems:'center',gap:4}},
-              h('span',{style:{fontSize:12,color:'#555'}},l),
-              h('span',{style:{background:'#f0c040',color:'#1a1a2e',fontSize:11,fontWeight:700,padding:'2px 7px',borderRadius:20}},v)
-            )
-          )
-        ),
-        projects.length===0&&h('div',{style:{textAlign:'center',padding:40,color:'#aaa',fontStyle:'italic'}},"No projects yet. Be the first to propose one!"),
-        projects.map(proj=>h(ProjectCard,{key:proj.id,project:proj,user:{...user,reputation:rep},onRepGain:gainRep}))
-      ),
+      {/* Body */}
+      <div style={{maxWidth:900,margin:"0 auto",padding:"16px 20px 50px"}}>
 
-      // Reps tab
-      mainTab==='reps'&&h(Fragment,null,
-        h('div',{style:{marginBottom:14}},
-          h('div',{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:19,color:'#1a1a2e',marginBottom:3}},"Representative Accountability"),
-          h('div',{style:{fontFamily:"'Lora',serif",fontSize:13,color:'#888'}},"How your elected officials voted — compared to how you voted.")
-        ),
-        h(RepTracker,{bills})
-      )
-    ),
+        {/* BILLS */}
+        {mainTab==="bills"&&<>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,alignItems:"center"}}>
+            <span style={{fontSize:12,color:"#aaa"}}>Filter:</span>
+            {[["all","All"],["village","🏘 Concord"],["city","🏙 Jackson"],["township","🌾 Township"],["state","🏛 State"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setBillFilter(v)} style={{background:billFilter===v?"#1a1a2e":"#fff",color:billFilter===v?"#f0c040":"#555",border:`1px solid ${billFilter===v?"#1a1a2e":"#ddd"}`,padding:"7px 14px",borderRadius:20,fontFamily:"'Playfair Display',serif",fontSize:12,fontWeight:billFilter===v?700:400}}>{l}</button>
+            ))}
+            <div style={{marginLeft:"auto",fontSize:12,color:"#aaa"}}>{filteredBills.length} bill{filteredBills.length!==1?"s":""}</div>
+          </div>
+          {filteredBills.length===0&&<div style={{textAlign:"center",padding:40,color:"#aaa",fontStyle:"italic"}}>Loading bills...</div>}
+          {filteredBills.map(bill=>(
+            <BillCard key={bill.id} bill={bill} user={{...user,...profile,reputation:rep}} userVotes={userVotes} onVoteCast={handleVoteCast} onRepGain={gainRep}/>
+          ))}
+        </>}
 
-    // Footer
-    h('div',{style:{background:'#1a1a2e',borderTop:'3px solid #f0c040',color:'#556677',textAlign:'center',padding:'20px 16px',fontSize:12,lineHeight:1.9}},
-      h('div',{style:{fontFamily:"'Playfair Display',serif",color:'#f0c040',fontSize:14,marginBottom:6}},"The People's Voice"),
-      h('div',{style:{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',borderRadius:8,padding:'10px 14px',maxWidth:560,margin:'0 auto 8px',fontSize:11,color:'#8899aa',lineHeight:1.7}},
-        "⚖️ ",h('strong',{style:{color:'#aab'}},"Nonpartisan Statement:")," Not affiliated with any political party, government body, or elected official. All analysis is factual and balanced. Community votes carry no official weight."
-      ),
-      "Votes & proposals are unofficial civic engagement",h('br'),
-      h('span',{style:{color:'#5b3a8c'}},"Concord → Jackson → Michigan → Nation")
-    )
+        {/* PROJECTS */}
+        {mainTab==="projects"&&<>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:20,color:"#1a1a2e"}}>Community Projects</div>
+              <div style={{fontFamily:"'Lora',serif",fontSize:13,color:"#888",marginTop:3}}>Propose. Pledge. Build. Forward to power.</div>
+            </div>
+            {canPropose?(
+              <button onClick={()=>setShowPropose(true)} style={{background:"#1a6b3c",color:"#fff",border:"none",padding:"10px 20px",borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14}}>+ Propose a Project</button>
+            ):(
+              <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:7,padding:"10px 16px",fontSize:13,color:"#888",textAlign:"center"}}>
+                <div style={{fontWeight:600,color:"#5b3a8c",marginBottom:2}}>{repInfo.icon} {repInfo.label}</div>
+                Earn <strong>{REP_TO_PROPOSE-rep} more rep</strong> to propose<br/>
+                <span style={{fontSize:11}}>Vote (+5) · Comment (+10) · Pledge (+15)</span>
+              </div>
+            )}
+          </div>
+          <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:"10px 16px",marginBottom:16,display:"flex",gap:14,flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{fontSize:12,color:"#888",fontStyle:"italic"}}>Earn rep:</span>
+            {[["🗳 Vote","+5"],["💬 Comment","+10"],["🤲 Pledge","+15"],["🌱 Propose","50 req"]].map(([l,v])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:5}}>
+                <span style={{fontSize:12,color:"#555"}}>{l}</span>
+                <span style={{background:"#f0c040",color:"#1a1a2e",fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:20}}>{v}</span>
+              </div>
+            ))}
+          </div>
+          {projects.length===0&&<div style={{textAlign:"center",padding:40,color:"#aaa",fontStyle:"italic"}}>No projects yet. Be the first to propose one!</div>}
+          {projects.map(proj=>(
+            <ProjectCard key={proj.id} project={proj} user={{...user,...profile,reputation:rep}} onRepGain={gainRep}/>
+          ))}
+        </>}
+
+        {/* REPS */}
+        {mainTab==="reps"&&<>
+          <div style={{marginBottom:16}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:20,color:"#1a1a2e",marginBottom:4}}>Representative Accountability</div>
+            <div style={{fontFamily:"'Lora',serif",fontSize:13,color:"#888"}}>How your elected officials voted — compared to how you voted.</div>
+          </div>
+          <RepTracker bills={bills}/>
+        </>}
+      </div>
+
+      {/* Footer */}
+      <div style={{background:"#1a1a2e",borderTop:"3px solid #f0c040",color:"#556677",textAlign:"center",padding:"24px 20px",fontSize:12,lineHeight:1.9}}>
+        <div style={{fontFamily:"'Playfair Display',serif",color:"#f0c040",fontSize:14,marginBottom:8}}>The People's Voice — Jackson County, MI</div>
+        <div style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"10px 16px",maxWidth:600,margin:"0 auto 10px",fontSize:11,color:"#8899aa",lineHeight:1.7}}>
+          ⚖️ <strong style={{color:"#aab"}}>Nonpartisan Statement:</strong> Not affiliated with any political party, government body, or elected official. All analysis is factual and balanced. Community votes carry no official weight.
+        </div>
+        Votes &amp; proposals are unofficial civic engagement<br/>
+        <span style={{color:"#5b3a8c"}}>Concord → Jackson → Michigan → Nation</span>
+      </div>
+    </div>
   );
 }
 
-// Mount
-ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
 </script>
 </body>
 </html>
