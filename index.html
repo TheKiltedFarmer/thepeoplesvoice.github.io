@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The People's Voice — Jackson County, MI</title>
+  <meta name="description" content="Verified civic voting and community projects for Concord and Jackson, Michigan." />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f4f1ea; font-family: 'Lora', serif; }
+    #root { min-height: 100vh; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    button { cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+    button:active { transform: scale(0.98); }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f0ece4; }
+    ::-webkit-scrollbar-thumb { background: #c0b89a; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+const API_MODEL = "claude-sonnet-4-20250514";
+
+// ─── Reputation System ────────────────────────────────────────────────────────
+const REP_ACTIONS = { vote: 5, comment: 10, pledge: 15, propose_unlocked: 50 };
+const REP_TO_PROPOSE = 50;
+
+const repLevel = (pts) => {
+  if (pts >= 100) return { label: "Community Pillar", icon: "🌳", color: "#1a6b3c" };
+  if (pts >= 50)  return { label: "Active Neighbor",  icon: "🤝", color: "#1a5c8a" };
+  if (pts >= 20)  return { label: "Engaged Resident", icon: "📣", color: "#5b3a8c" };
+  return           { label: "New Resident",            icon: "🌱", color: "#888"    };
+};
+
+// ─── Sample Bills ─────────────────────────────────────────────────────────────
+const INIT_BILLS = [
+  {
+    id: "CONCORD-2025-01", level: "village", jurisdiction: "Village of Concord",
+    title: "First Street Sewer Line Replacement",
+    status: "Council Vote Pending", introduced: "Jan 14, 2025", sponsor: "DPW Director J. Blossom",
+    summary: "Authorizes up to $27,125 to contract Jesse Brigham Construction for emergency sewer line repairs on First Street following inspection revealing critical failures.",
+    fullText: "The Village Council hereby authorizes DPW to contract Jesse Brigham Construction for sewer line repair on First Street, not to exceed $27,125, drawn from the Village infrastructure reserve.",
+    votes: { yes: 87, no: 14, abstain: 6 },
+    comments: [{ id: 1, user: "LocalResident", avatar: "L", text: "This has needed fixing for years. The smell near First Street in summer is unbearable.", time: "3h ago", likes: 22, anonymous: false }]
+  },
+  {
+    id: "JACKSON-2025-03", level: "city", jurisdiction: "City of Jackson",
+    title: "Urban Agriculture Expansion Ordinance",
+    status: "Planning Commission Review", introduced: "Feb 3, 2025", sponsor: "Councilmember Angelita Gunn",
+    summary: "Amends Jackson's zoning code to permit backyard chickens, beehives, and small-scale food production in all residential zones, and establishes a community Adopt-A-Hive program.",
+    fullText: "Chapter 42 of the Jackson City Code is amended to permit up to 6 hens and 2 registered beehives on residential lots of 5,000 sq ft or more. An Adopt-A-Hive registry shall be maintained by the City.",
+    votes: { yes: 892, no: 203, abstain: 44 },
+    comments: [{ id: 1, user: "KiltedFarmer", avatar: "K", text: "This is exactly what Jackson needs. Food sovereignty starts at home.", time: "2h ago", likes: 67, anonymous: false }]
+  },
+  {
+    id: "SUMMIT-2025-01", level: "township", jurisdiction: "Summit Township",
+    title: "Summit Township Road Millage — 0.5 Mill",
+    status: "November 2025 Ballot", introduced: "Aug 2025", sponsor: "Summit Township Board",
+    summary: "Proposes a 10-year, 0.5 mill property tax increase to fund local road improvements, estimated to raise $446,893 in its first year.",
+    fullText: "Shall Summit Township impose 0.5 mill for ten years, 2025–2034, for improving and maintaining local roads, raising an estimated $446,893 in 2025?",
+    votes: { yes: 1203, no: 876, abstain: 98 },
+    comments: [{ id: 1, user: "SummitDriver", avatar: "S", text: "I blew two tires last winter on township roads. Yes from me.", time: "1d ago", likes: 55, anonymous: false }]
+  },
+  {
+    id: "MI-SB-2025-12", level: "state", jurisdiction: "State of Michigan",
+    title: "Michigan Small Farm Direct Sale Exemption Act",
+    status: "Senate Agriculture Committee", introduced: "Mar 1, 2025", sponsor: "Sen. Thomas Walcott (R-MI)",
+    summary: "Exempts small-scale farmers under $50k revenue from state licensing when selling directly to consumers, and explicitly permits community food exchanges and gifting programs.",
+    fullText: "A producer with gross annual revenues under $50,000 shall be exempt from licensing requirements when selling or gifting agricultural products directly to the end consumer.",
+    votes: { yes: 2841, no: 1102, abstain: 203 },
+    comments: []
+  },
+];
+
+// ─── Sample Projects ──────────────────────────────────────────────────────────
+const INIT_PROJECTS = [
+  {
+    id: "proj-001", proposer: "KiltedFarmer", proposerRep: 120,
+    title: "Concord Community Free Pantry Network",
+    description: "Install 5 Little Free Pantry boxes at key locations around Concord — near the school, the park, the church, and both ends of Main Street. Stocked by neighbors, for neighbors. No questions asked.",
+    category: "Food Security", jurisdiction: "Village of Concord",
+    created: "March 10, 2025", status: "gathering",
+    threshold: { supporters: 30, laborHours: 40, skills: 3 },
+    pledges: [
+      { user: "JessicaF", type: "labor", value: "8 hours", detail: "Carpentry & installation" },
+      { user: "Anonymous", type: "materials", value: "Lumber & hardware", detail: "Enough for 2 boxes" },
+      { user: "ConcordBaker", type: "skills", value: "Food handling", detail: "Weekly restocking coordination" },
+      { user: "LocalChurch", type: "labor", value: "4 hours", detail: "Hosting a pantry location" },
+    ],
+    supporters: 18, comments: [
+      { id: 1, user: "Neighbor", avatar: "N", text: "This is beautiful. The Breaking Bread project showed us people will show up for each other.", time: "1h ago", likes: 24, anonymous: false }
+    ],
+    officialTarget: { name: "Village President, Village of Concord", email: "clerk@villageofconcord.com" }
+  },
+  {
+    id: "proj-002", proposer: "JacksonGarden", proposerRep: 67,
+    title: "Vacant Lot Urban Farm — Ward 3 Jackson",
+    description: "Convert the long-vacant city-owned lot on Mechanic Street into a community food forest and annual vegetable garden. Managed by a neighborhood council, harvests shared freely with nearby residents.",
+    category: "Urban Agriculture", jurisdiction: "City of Jackson",
+    created: "March 5, 2025", status: "gathering",
+    threshold: { supporters: 75, laborHours: 200, skills: 6 },
+    pledges: [
+      { user: "KiltedFarmer", type: "skills", value: "Beekeeping & permaculture", detail: "Design and first-year guidance" },
+      { user: "Anonymous", type: "funding", value: "$200", detail: "Seed money" },
+      { user: "SoilSister", type: "labor", value: "20 hours", detail: "Soil prep and planting" },
+    ],
+    supporters: 31, comments: [],
+    officialTarget: { name: "Ward 3 Councilmember Angelita Gunn, City of Jackson", email: "citycouncil@cityofjackson.org" }
+  },
+  {
+    id: "proj-003", proposer: "ConcordParent", proposerRep: 55,
+    title: "Safe Route to School Sidewalk Repair",
+    description: "Three blocks of broken sidewalk on the primary walking route to Concord Community Schools have been deteriorating for years. We propose a community-led repair day combined with a formal petition to the Village to prioritize permanent fixes.",
+    category: "Infrastructure", jurisdiction: "Village of Concord",
+    created: "Feb 28, 2025", status: "forwarded",
+    threshold: { supporters: 25, laborHours: 30, skills: 2 },
+    pledges: [
+      { user: "DadOfThree", type: "labor", value: "6 hours", detail: "Weekend repair day" },
+      { user: "Anonymous", type: "materials", value: "Concrete mix", detail: "2 bags donated" },
+    ],
+    supporters: 27, comments: [
+      { id: 1, user: "SchoolMom", avatar: "S", text: "My kids nearly fell three times this winter. Thank you for pushing this.", time: "2d ago", likes: 41, anonymous: false }
+    ],
+    officialTarget: { name: "Village Council, Village of Concord", email: "clerk@villageofconcord.com" },
+    forwardedLetter: "Dear Village Council of Concord,\n\nWe, the undersigned 27 verified residents, formally bring to your attention the deteriorating sidewalks on the primary walking route to Concord Community Schools...\n\n[Full AI-generated letter would appear here in production]"
+  },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const pct = (v, t) => t === 0 ? 0 : Math.round((v / t) * 100);
+const LEVEL_META = {
+  village:  { label:"Village",  color:"#5b3a8c", bg:"#f0ebf8", icon:"🏘" },
+  city:     { label:"City",     color:"#1a5c8a", bg:"#e8f2fa", icon:"🏙" },
+  township: { label:"Township", color:"#1a6b3c", bg:"#e8f5ee", icon:"🌾" },
+  state:    { label:"State",    color:"#c0392b", bg:"#fdf0ef", icon:"🏛" },
+};
+const CAT_COLORS = {
+  "Food Security": "#1a6b3c", "Urban Agriculture": "#5b8a00", "Infrastructure": "#1a5c8a",
+  "Education": "#5b3a8c", "Public Safety": "#c0392b", "Environment": "#1a6b3c", "Housing": "#8a4a00",
+};
+const PLEDGE_META = {
+  labor:     { icon:"⏱", label:"Time / Labor",   color:"#1a5c8a", bg:"#e8f2fa" },
+  skills:    { icon:"🛠", label:"Skills",         color:"#5b3a8c", bg:"#f0ebf8" },
+  materials: { icon:"📦", label:"Materials",      color:"#8a4a00", bg:"#fdf3e7" },
+  funding:   { icon:"💰", label:"Funding",        color:"#1a6b3c", bg:"#e8f5ee" },
+};
+
+// ─── Pre-loaded AI Analyses ───────────────────────────────────────────────────
+const BILL_ANALYSES = {
+  "CONCORD-2025-01": {
+    plain_english: "The Village of Concord needs to replace a failing sewer line on First Street. The council is voting to authorize up to $27,125 to hire a local contractor, Jesse Brigham Construction, to do the repairs. The money comes from the Village's existing infrastructure reserve — no new taxes needed.",
+    who_benefits: ["First Street residents who deal with odor and risk from failing pipes", "The whole village — aging sewer infrastructure affects everyone's water safety", "Jesse Brigham Construction — a local business gets the work", "Future residents and property values on First Street"],
+    who_is_harmed: ["Village infrastructure reserve shrinks by up to $27,125", "Residents who feel competitive bidding should have been required — only one contractor quoted"],
+    hidden_details: ["Only one contractor bid was presented at the meeting", "The 20+ year old Village tractor sale is intended to partially offset other infrastructure costs", "No mention of warranty or follow-up inspection timeline"],
+    local_impact: "Directly affects Concord residents on and near First Street; typical for a small village with limited DPW staff managing aging 1900s-era infrastructure.",
+    bottom_line: "A necessary emergency repair at a reasonable cost — the main valid concern is whether a single bid process got taxpayers the best price."
+  },
+  "JACKSON-2025-03": {
+    plain_english: "This ordinance would let Jackson homeowners legally keep backyard chickens and beehives, and establish a city-run Adopt-A-Hive program. Right now these activities are restricted or exist in a gray area under zoning law. Passing this would bring Jackson in line with dozens of Michigan cities that already allow urban agriculture.",
+    who_benefits: ["Homeowners who want to grow food and raise chickens or bees", "Food-insecure residents who benefit from neighborhood food sharing", "Pollinators and local ecosystems through expanded beekeeping", "Community organizations like The Kilted Farmers running urban food programs"],
+    who_is_harmed: ["Neighbors concerned about noise (chickens), smell, or pest attraction", "Property owners who fear impacts on adjacent property values", "Residents with bee sting allergies living near registered hives"],
+    hidden_details: ["Roosters are explicitly prohibited — only hens", "Lots must be at least 5,000 sq ft, which excludes some denser urban parcels", "Enforcement mechanism and complaint process not yet specified in current draft"],
+    local_impact: "Jackson has significant food insecurity; urban agriculture ordinances in comparable Michigan cities have measurably increased neighborhood food access and community cohesion.",
+    bottom_line: "A well-structured ordinance with real community benefit — neighbor concerns are valid and deserve clear enforcement language before final passage."
+  },
+  "SUMMIT-2025-01": {
+    plain_english: "Summit Township wants to raise property taxes by 0.5 mill for 10 years to pay for road repairs and maintenance. For a home with a taxable value of $100,000, this would cost about $50 per year. The money can only be used for roads — it's earmarked, not a general fund increase.",
+    who_benefits: ["Drivers and cyclists on deteriorating township roads", "Emergency services that need reliable road access", "Property owners whose home values are affected by road quality", "Local contractors hired to do the repair work"],
+    who_is_harmed: ["Property owners paying higher taxes, especially fixed-income seniors", "Renters whose landlords may pass the cost through in rent", "Residents who feel past road funding was mismanaged and want accountability first"],
+    hidden_details: ["This is a 10-year commitment — a future township board cannot easily undo it", "The estimated $446,893/year assumes no significant property value drops", "No independent oversight board for how funds are spent is specified in the proposal"],
+    local_impact: "Summit Township roads serve as connectors between Concord, Jackson, and surrounding rural communities — deteriorating roads here affect the whole county's rural residents.",
+    bottom_line: "The roads genuinely need work, but voters are right to ask for a spending accountability plan before committing to a decade of increased taxes."
+  },
+  "MI-SB-2025-12": {
+    plain_english: "This Michigan bill would free small farmers making under $50,000 a year from state licensing requirements when they sell or give food directly to customers. It would also explicitly make community food exchanges and gifting programs legal under state law — something currently in a gray area that exposes farmers and food-sharing organizations to risk.",
+    who_benefits: ["Small and micro farmers across Michigan selling at farm stands or markets", "Community food organizations running gift economies and food exchanges", "Consumers who get access to more local, affordable food", "Rural communities where small farms are central to local identity and food supply"],
+    who_is_harmed: ["Michigan Department of Agriculture loses regulatory oversight over a segment of food production", "Larger licensed farms that compete with newly unlicensed small producers", "Consumers if food safety incidents arise from unregulated direct sales"],
+    hidden_details: ["The $50,000 revenue threshold is gross, not net — a farmer could have very thin margins and still be above it", "Does not address liability if an unlicensed sale causes illness", "Community gifting programs would be explicitly legalized — a significant win for contributionist food networks"],
+    local_impact: "Directly relevant to Jackson County's active small farm community and organizations like The Kilted Farmers — would remove legal ambiguity around community pasta, bread, and produce sharing programs.",
+    bottom_line: "A genuinely liberating bill for small farmers and gift economy food networks — the food safety tradeoff is real but manageable at the scale this bill targets."
+  }
+};
+
+// ─── AI Breakdown for Bills ───────────────────────────────────────────────────
+function AIBreakdown({ bill }) {
+  const [data, setData] = useState(null);
+
+  const analyze = () => {
+    const preloaded = BILL_ANALYSES[bill.id];
+    if (preloaded) { setData(preloaded); return; }
+    // Fallback for user-added bills
+    setData({
+      plain_english: `${bill.title} is a ${bill.level}-level proposal in ${bill.jurisdiction}. ${bill.summary}`,
+      who_benefits: ["Residents directly affected by this issue", "Local government if the proposal passes efficiently"],
+      who_is_harmed: ["Taxpayers or stakeholders who bear the cost", "Those who prefer an alternative approach"],
+      hidden_details: ["Review the full text for implementation details", "Ask your local council member for clarification"],
+      local_impact: `This proposal would affect ${bill.jurisdiction} residents directly.`,
+      bottom_line: "Review the full proposal text and attend the relevant public meeting to form your own view."
+    });
+  };
+
+  if (!data) return (
+    <button onClick={analyze} style={{background:"#1a1a2e",color:"#f0c040",border:"none",padding:"10px 22px",fontFamily:"'Playfair Display',serif",fontSize:13,cursor:"pointer",borderRadius:5}}>⚡ Get AI Analysis</button>
+  );
+
+  return (
+    <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:10,padding:20}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,color:"#1a1a2e",marginBottom:12}}>🤖 AI Community Analysis</div>
+      <p style={{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.75,color:"#333",marginBottom:16}}>{data.plain_english}</p>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+        <div style={{background:"#eef7f1",borderRadius:7,padding:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#1a6b3c",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>✅ Who Benefits</div>
+          {data.who_benefits?.map((x,i)=><div key={i} style={{fontSize:13,color:"#333",fontFamily:"'Lora',serif",marginBottom:4}}>• {x}</div>)}
+        </div>
+        <div style={{background:"#fdf0ef",borderRadius:7,padding:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#c0392b",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>⚠️ Concerns</div>
+          {data.who_is_harmed?.map((x,i)=><div key={i} style={{fontSize:13,color:"#333",fontFamily:"'Lora',serif",marginBottom:4}}>• {x}</div>)}
+        </div>
+      </div>
+      {data.hidden_details?.length>0&&<div style={{background:"#fffbea",borderRadius:7,padding:12,marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#8a6000",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>🔍 Fine Print</div>
+        {data.hidden_details.map((x,i)=><div key={i} style={{fontSize:13,color:"#333",fontFamily:"'Lora',serif",marginBottom:4}}>• {x}</div>)}
+      </div>}
+      {data.local_impact&&<div style={{background:"#e8f2fa",borderRadius:7,padding:12,marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#1a5c8a",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>📍 Jackson County Impact</div>
+        <div style={{fontSize:13,color:"#333",fontFamily:"'Lora',serif"}}>{data.local_impact}</div>
+      </div>}
+      <div style={{borderTop:"1px solid #e5dece",paddingTop:10,fontFamily:"'Playfair Display',serif",fontStyle:"italic",color:"#1a1a2e",fontSize:14}}>
+        <strong>Bottom Line:</strong> {data.bottom_line}
+      </div>
+    </div>
+  );
+}
+
+// ─── Bill Card ────────────────────────────────────────────────────────────────
+function BillCard({ bill, onVote, onAddComment, userVotes, onRepGain }) {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState("ai");
+  const [pendingVote, setPendingVote] = useState(null);
+  const [commentText, setCommentText] = useState("");
+  const [commentAnon, setCommentAnon] = useState(false);
+  const total = bill.votes.yes + bill.votes.no + bill.votes.abstain;
+  const myVote = userVotes[bill.id];
+  const meta = LEVEL_META[bill.level] || LEVEL_META.city;
+
+  const submitComment = () => {
+    if (!commentText.trim()) return;
+    onAddComment(bill.id, { id:Date.now(), user:commentAnon?"Anonymous":"You", avatar:commentAnon?"?":"Y", text:commentText.trim(), time:"just now", likes:0, anonymous:commentAnon });
+    setCommentText("");
+    onRepGain(REP_ACTIONS.comment);
+  };
+
+  return (
+    <div style={{background:"#fff",borderRadius:10,border:"1px solid #e5dece",marginBottom:16,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.05)"}}>
+      <div style={{borderLeft:`5px solid ${meta.color}`,padding:"18px 20px"}}>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:10}}>
+          <span style={{background:meta.bg,color:meta.color,fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20,textTransform:"uppercase",letterSpacing:1}}>{meta.icon} {meta.label}</span>
+          <span style={{background:"#f5f5f5",color:"#555",fontSize:11,padding:"3px 9px",borderRadius:20}}>{bill.jurisdiction}</span>
+          <span style={{background:"#fffbea",color:"#8a6000",fontSize:11,padding:"3px 9px",borderRadius:20}}>{bill.status}</span>
+        </div>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:18,color:"#1a1a2e",margin:"0 0 6px",lineHeight:1.3}}>{bill.title}</h3>
+        <div style={{fontSize:12,color:"#aaa",marginBottom:12,fontFamily:"'Lora',serif"}}>Introduced {bill.introduced} · {bill.sponsor}</div>
+        <p style={{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.75,color:"#444",margin:"0 0 14px"}}>{bill.summary}</p>
+
+        <div style={{marginBottom:14}}>
+          <div style={{display:"flex",height:10,borderRadius:5,overflow:"hidden",marginBottom:6,background:"#eee"}}>
+            <div style={{width:`${pct(bill.votes.yes,total)}%`,background:"#1a6b3c",transition:"width 0.5s ease"}}/>
+            <div style={{width:`${pct(bill.votes.no,total)}%`,background:"#c0392b",transition:"width 0.5s ease"}}/>
+            <div style={{width:`${pct(bill.votes.abstain,total)}%`,background:"#bbb"}}/>
+          </div>
+          <div style={{display:"flex",gap:12,fontSize:12,flexWrap:"wrap"}}>
+            <span style={{color:"#1a6b3c",fontWeight:600}}>✅ {pct(bill.votes.yes,total)}% ({bill.votes.yes.toLocaleString()})</span>
+            <span style={{color:"#c0392b",fontWeight:600}}>❌ {pct(bill.votes.no,total)}% ({bill.votes.no.toLocaleString()})</span>
+            <span style={{color:"#aaa"}}>⬜ {bill.votes.abstain}</span>
+            <span style={{color:"#aaa",marginLeft:"auto"}}>{total.toLocaleString()} votes</span>
+          </div>
+        </div>
+
+        {!myVote ? (
+          <>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {[["yes","✅ Support","#1a6b3c"],["no","❌ Oppose","#c0392b"],["abstain","⬜ Abstain","#777"]].map(([v,l,c])=>(
+                <button key={v} onClick={()=>setPendingVote(v)} style={{background:c,color:"#fff",border:"none",padding:"9px 18px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>{l}</button>
+              ))}
+            </div>
+            {pendingVote&&(
+              <div style={{marginTop:12,background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:14}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a1a2e",marginBottom:8}}>Show your vote publicly?</div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>{onVote(bill.id,pendingVote,false);onRepGain(REP_ACTIONS.vote);setPendingVote(null);}} style={{background:"#1a1a2e",color:"#f0c040",border:"none",padding:"8px 16px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,cursor:"pointer",fontSize:13}}>👤 Public</button>
+                  <button onClick={()=>{onVote(bill.id,pendingVote,true);onRepGain(REP_ACTIONS.vote);setPendingVote(null);}} style={{background:"#5b3a8c",color:"#fff",border:"none",padding:"8px 16px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,cursor:"pointer",fontSize:13}}>🔒 Anonymous</button>
+                  <button onClick={()=>setPendingVote(null)} style={{background:"transparent",color:"#aaa",border:"1px solid #ddd",padding:"8px 12px",borderRadius:5,cursor:"pointer",fontSize:13}}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"#f5f5f5",border:"1px solid #e0e0e0",borderRadius:6,padding:"8px 14px",fontSize:13,fontFamily:"'Lora',serif"}}>
+            ✓ Voted <strong style={{color:myVote.choice==="yes"?"#1a6b3c":myVote.choice==="no"?"#c0392b":"#888"}}>{myVote.choice}</strong>
+            <span style={{color:"#ccc"}}>·</span>
+            <span style={{color:"#aaa"}}>{myVote.anonymous?"🔒 anonymous":"👤 public"}</span>
+          </div>
+        )}
+
+        <button onClick={()=>setOpen(!open)} style={{marginTop:12,background:"transparent",border:"none",color:"#1a5c8a",fontFamily:"'Playfair Display',serif",fontSize:13,cursor:"pointer",padding:0}}>
+          {open?"▲ Close":"▼ AI Analysis & Discussion"}
+        </button>
+      </div>
+
+      {open&&(
+        <div style={{borderTop:"1px solid #e5dece",padding:"16px 20px"}}>
+          <div style={{display:"flex",borderBottom:"2px solid #e5dece",marginBottom:16}}>
+            {[["ai","🤖 AI Analysis"],["forum","💬 Discussion"]].map(([t,l])=>(
+              <button key={t} onClick={()=>setTab(t)} style={{background:"transparent",border:"none",borderBottom:tab===t?"2px solid #1a1a2e":"none",marginBottom:-2,padding:"8px 16px",fontFamily:"'Playfair Display',serif",fontWeight:tab===t?700:400,fontSize:14,cursor:"pointer",color:tab===t?"#1a1a2e":"#aaa"}}>{l}</button>
+            ))}
+          </div>
+          {tab==="ai"&&<AIBreakdown bill={bill}/>}
+          {tab==="forum"&&(
+            <div>
+              <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:14,marginBottom:14}}>
+                <textarea value={commentText} onChange={e=>setCommentText(e.target.value)} placeholder="Share your perspective..." rows={3}
+                  style={{width:"100%",border:"1px solid #ddd",borderRadius:5,padding:"8px 10px",fontFamily:"'Lora',serif",fontSize:13,resize:"vertical",boxSizing:"border-box"}}/>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+                  <label style={{fontSize:13,color:"#555",cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                    <input type="checkbox" checked={commentAnon} onChange={e=>setCommentAnon(e.target.checked)}/> Anonymous
+                  </label>
+                  <button onClick={submitComment} style={{background:"#1a1a2e",color:"#f0c040",border:"none",padding:"8px 18px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,cursor:"pointer",borderRadius:5}}>Post +10 rep</button>
+                </div>
+              </div>
+              {bill.comments.map(c=>(
+                <div key={c.id} style={{display:"flex",gap:10,marginBottom:12,paddingBottom:12,borderBottom:"1px solid #f0ece4"}}>
+                  <div style={{width:36,height:36,borderRadius:"50%",background:c.anonymous?"#ccc":"#1a1a2e",color:c.anonymous?"#666":"#f0c040",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,flexShrink:0}}>{c.avatar}</div>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontWeight:700,fontSize:13,color:"#1a1a2e",fontFamily:"'Playfair Display',serif"}}>{c.user}</span>
+                      <span style={{fontSize:11,color:"#bbb"}}>{c.time}</span>
+                    </div>
+                    <div style={{fontSize:13,lineHeight:1.65,color:"#333",fontFamily:"'Lora',serif"}}>{c.text}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Project Card ─────────────────────────────────────────────────────────────
+function ProjectCard({ project, onPledge, onSupport, onComment, userSupported, onRepGain }) {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState("pledges");
+  const [pledgeType, setPledgeType] = useState("labor");
+  const [pledgeValue, setPledgeValue] = useState("");
+  const [pledgeDetail, setPledgeDetail] = useState("");
+  const [commentText, setCommentText] = useState("");
+  const [showLetter, setShowLetter] = useState(false);
+  const [letter, setLetter] = useState(project.forwardedLetter || null);
+  const [genLoading, setGenLoading] = useState(false);
+
+  const supported = userSupported[project.id];
+  const supportPct = Math.min(100, Math.round((project.supporters / project.threshold.supporters) * 100));
+  const isReady = project.supporters >= project.threshold.supporters;
+  const catColor = CAT_COLORS[project.category] || "#555";
+
+  const submitPledge = () => {
+    if (!pledgeValue.trim()) return;
+    onPledge(project.id, { user:"You", type:pledgeType, value:pledgeValue, detail:pledgeDetail });
+    setPledgeValue(""); setPledgeDetail("");
+    onRepGain(REP_ACTIONS.pledge);
+  };
+
+  const generateLetter = async () => {
+    setGenLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:API_MODEL, max_tokens:1000,
+          system:"You are a civic advocate drafting a formal letter to a local government official on behalf of community members. Write a professional, heartfelt, specific letter. Use the project details provided.",
+          messages:[{role:"user",content:`Write a formal letter to ${project.officialTarget.name} on behalf of ${project.supporters} verified residents of ${project.jurisdiction} requesting support for this community project:\n\nProject: ${project.title}\nDescription: ${project.description}\nPledges made: ${project.pledges.map(p=>`${p.user}: ${p.type} - ${p.value}`).join(", ")}\n\nThe letter should be 3-4 paragraphs, specific, and close by requesting a response or meeting.`}]
+        })
+      });
+      const json = await res.json();
+      const text = json.content?.find(b=>b.type==="text")?.text || "Letter generation failed.";
+      setLetter(text);
+      setShowLetter(true);
+    } catch { setLetter("Could not generate letter. Please try again."); setShowLetter(true); }
+    setGenLoading(false);
+  };
+
+  return (
+    <div style={{background:"#fff",borderRadius:10,border:"1px solid #e5dece",marginBottom:16,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.05)"}}>
+      <div style={{borderLeft:`5px solid ${catColor}`,padding:"18px 20px"}}>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:10}}>
+          <span style={{background:catColor+"22",color:catColor,fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>🌱 {project.category}</span>
+          <span style={{background:"#f5f5f5",color:"#555",fontSize:11,padding:"3px 9px",borderRadius:20}}>{project.jurisdiction}</span>
+          <span style={{background:project.status==="forwarded"?"#eef7f1":"#fffbea",color:project.status==="forwarded"?"#1a6b3c":"#8a6000",fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>
+            {project.status==="forwarded"?"✅ Forwarded to Officials":"⏳ Gathering Support"}
+          </span>
+        </div>
+
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:18,color:"#1a1a2e",margin:"0 0 6px",lineHeight:1.3}}>{project.title}</h3>
+        <div style={{fontSize:12,color:"#aaa",marginBottom:10,fontFamily:"'Lora',serif"}}>Proposed by <strong style={{color:"#5b3a8c"}}>{project.proposer}</strong> · {project.created}</div>
+        <p style={{fontFamily:"'Lora',serif",fontSize:14,lineHeight:1.75,color:"#444",margin:"0 0 16px"}}>{project.description}</p>
+
+        {/* Support meter */}
+        <div style={{marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <span style={{fontSize:13,fontFamily:"'Playfair Display',serif",fontWeight:700,color:"#1a1a2e"}}>Community Support</span>
+            <span style={{fontSize:13,color:isReady?"#1a6b3c":"#888",fontWeight:isReady?700:400}}>{project.supporters} / {project.threshold.supporters} neighbors {isReady?"✅":""}</span>
+          </div>
+          <div style={{height:12,background:"#eee",borderRadius:6,overflow:"hidden"}}>
+            <div style={{width:`${supportPct}%`,height:"100%",background:isReady?"#1a6b3c":catColor,borderRadius:6,transition:"width 0.5s ease"}}/>
+          </div>
+        </div>
+
+        {/* Pledge counts */}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+          {Object.entries(PLEDGE_META).map(([type,meta])=>{
+            const count = project.pledges.filter(p=>p.type===type).length;
+            return count>0&&<div key={type} style={{background:meta.bg,color:meta.color,fontSize:12,padding:"4px 10px",borderRadius:20,fontWeight:600}}>{meta.icon} {count} {meta.label}</div>;
+          })}
+        </div>
+
+        {/* Action buttons */}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          {!supported ? (
+            <button onClick={()=>{onSupport(project.id);onRepGain(REP_ACTIONS.vote);}} style={{background:"#1a6b3c",color:"#fff",border:"none",padding:"9px 18px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>🤝 Add My Support</button>
+          ) : (
+            <div style={{background:"#eef7f1",border:"1px solid #c8e8d4",borderRadius:5,padding:"8px 14px",fontSize:13,color:"#1a6b3c",fontFamily:"'Lora',serif"}}>✓ You support this</div>
+          )}
+          {isReady && project.status!=="forwarded" && (
+            <button onClick={generateLetter} style={{background:"#c0392b",color:"#fff",border:"none",padding:"9px 18px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+              {genLoading?"Drafting...":"📨 Forward to Officials"}
+            </button>
+          )}
+          {(letter || project.status==="forwarded") && (
+            <button onClick={()=>setShowLetter(!showLetter)} style={{background:"transparent",border:"1px solid #1a5c8a",color:"#1a5c8a",padding:"9px 14px",borderRadius:5,fontFamily:"'Playfair Display',serif",fontSize:13,cursor:"pointer"}}>
+              📄 {showLetter?"Hide":"View"} Official Letter
+            </button>
+          )}
+        </div>
+
+        {/* Official letter */}
+        {showLetter && (letter||project.forwardedLetter) && (
+          <div style={{marginTop:14,background:"#f0f4ff",border:"1px solid #c0d0e8",borderRadius:8,padding:16}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a5c8a",marginBottom:10}}>📨 Letter to {project.officialTarget.name}</div>
+            <pre style={{fontFamily:"'Lora',serif",fontSize:13,lineHeight:1.7,color:"#333",whiteSpace:"pre-wrap",margin:0}}>{letter||project.forwardedLetter}</pre>
+          </div>
+        )}
+
+        <button onClick={()=>setOpen(!open)} style={{marginTop:12,background:"transparent",border:"none",color:"#1a5c8a",fontFamily:"'Playfair Display',serif",fontSize:13,cursor:"pointer",padding:0}}>
+          {open?"▲ Close":"▼ Pledge Resources & Discussion"}
+        </button>
+      </div>
+
+      {open&&(
+        <div style={{borderTop:"1px solid #e5dece",padding:"16px 20px"}}>
+          <div style={{display:"flex",borderBottom:"2px solid #e5dece",marginBottom:16}}>
+            {[["pledges","🤲 Pledges"],["discuss","💬 Discussion"]].map(([t,l])=>(
+              <button key={t} onClick={()=>setTab(t)} style={{background:"transparent",border:"none",borderBottom:tab===t?"2px solid #1a1a2e":"none",marginBottom:-2,padding:"8px 16px",fontFamily:"'Playfair Display',serif",fontWeight:tab===t?700:400,fontSize:14,cursor:"pointer",color:tab===t?"#1a1a2e":"#aaa"}}>{l}</button>
+            ))}
+          </div>
+
+          {tab==="pledges"&&(
+            <div>
+              {/* Existing pledges */}
+              {project.pledges.length>0&&(
+                <div style={{marginBottom:16}}>
+                  {project.pledges.map((p,i)=>{
+                    const m = PLEDGE_META[p.type];
+                    return <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:m.bg,borderRadius:7,marginBottom:8}}>
+                      <span style={{fontSize:20}}>{m.icon}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:m.color}}>{p.user} — {p.value}</div>
+                        {p.detail&&<div style={{fontSize:12,color:"#666",fontFamily:"'Lora',serif"}}>{p.detail}</div>}
+                      </div>
+                      <div style={{fontSize:11,color:m.color,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>{m.label}</div>
+                    </div>;
+                  })}
+                </div>
+              )}
+
+              {/* Add pledge */}
+              <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:14}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,color:"#1a1a2e",marginBottom:12}}>Pledge Your Contribution</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+                  {Object.entries(PLEDGE_META).map(([type,meta])=>(
+                    <button key={type} onClick={()=>setPledgeType(type)} style={{padding:"8px 12px",border:`2px solid ${pledgeType===type?meta.color:"#ddd"}`,borderRadius:6,background:pledgeType===type?meta.bg:"#fff",color:pledgeType===type?meta.color:"#777",fontFamily:"'Playfair Display',serif",fontSize:12,cursor:"pointer",fontWeight:pledgeType===type?700:400}}>
+                      {meta.icon} {meta.label}
+                    </button>
+                  ))}
+                </div>
+                <input value={pledgeValue} onChange={e=>setPledgeValue(e.target.value)} placeholder={pledgeType==="labor"?"e.g. 4 hours on weekends":pledgeType==="skills"?"e.g. Plumbing, electrical":pledgeType==="materials"?"e.g. 10 bags of soil":"e.g. $50"} style={{width:"100%",border:"1px solid #ddd",borderRadius:5,padding:"8px 10px",fontFamily:"'Lora',serif",fontSize:13,boxSizing:"border-box",marginBottom:8}}/>
+                <input value={pledgeDetail} onChange={e=>setPledgeDetail(e.target.value)} placeholder="Optional details..." style={{width:"100%",border:"1px solid #ddd",borderRadius:5,padding:"8px 10px",fontFamily:"'Lora',serif",fontSize:13,boxSizing:"border-box",marginBottom:10}}/>
+                <button onClick={submitPledge} style={{background:"#1a6b3c",color:"#fff",border:"none",padding:"9px 20px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,cursor:"pointer",borderRadius:5}}>
+                  Pledge +15 rep →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {tab==="discuss"&&(
+            <div>
+              <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:14,marginBottom:14}}>
+                <textarea value={commentText} onChange={e=>setCommentText(e.target.value)} placeholder="Ideas, questions, or offers to help..." rows={3}
+                  style={{width:"100%",border:"1px solid #ddd",borderRadius:5,padding:"8px 10px",fontFamily:"'Lora',serif",fontSize:13,resize:"vertical",boxSizing:"border-box"}}/>
+                <div style={{textAlign:"right",marginTop:8}}>
+                  <button onClick={()=>{if(!commentText.trim())return;onComment(project.id,{id:Date.now(),user:"You",avatar:"Y",text:commentText.trim(),time:"just now",likes:0,anonymous:false});setCommentText("");onRepGain(REP_ACTIONS.comment);}} style={{background:"#1a1a2e",color:"#f0c040",border:"none",padding:"8px 18px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,cursor:"pointer",borderRadius:5}}>Post +10 rep</button>
+                </div>
+              </div>
+              {project.comments.length===0&&<div style={{textAlign:"center",color:"#bbb",fontStyle:"italic",fontSize:13,padding:16}}>No discussion yet. Start the conversation.</div>}
+              {project.comments.map(c=>(
+                <div key={c.id} style={{display:"flex",gap:10,marginBottom:12,paddingBottom:12,borderBottom:"1px solid #f0ece4"}}>
+                  <div style={{width:36,height:36,borderRadius:"50%",background:"#1a1a2e",color:"#f0c040",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,flexShrink:0}}>{c.avatar}</div>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:13,color:"#1a1a2e",fontFamily:"'Playfair Display',serif",marginBottom:3}}>{c.user} <span style={{color:"#bbb",fontWeight:400,fontSize:11}}>{c.time}</span></div>
+                    <div style={{fontSize:13,lineHeight:1.65,color:"#333",fontFamily:"'Lora',serif"}}>{c.text}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Propose Project Modal ────────────────────────────────────────────────────
+function ProposeModal({ onClose, onSubmit }) {
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [cat, setCat] = useState("Food Security");
+  const [juris, setJuris] = useState("Village of Concord");
+  const [target, setTarget] = useState("");
+  const [threshold, setThreshold] = useState("25");
+
+  const submit = () => {
+    if (!title.trim()||!desc.trim()) return;
+    onSubmit({ title, description:desc, category:cat, jurisdiction:juris, officialTarget:{name:target||"Village Council, Village of Concord",email:""}, threshold:{supporters:parseInt(threshold)||25,laborHours:40,skills:2} });
+    onClose();
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(10,10,20,0.8)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"#fff",borderRadius:14,padding:32,width:520,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 30px 80px rgba(0,0,0,0.4)"}}>
+        <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:22,color:"#1a1a2e",marginBottom:4}}>Propose a Community Project</div>
+        <div style={{fontFamily:"'Lora',serif",fontSize:13,color:"#888",marginBottom:20}}>Your reputation qualifies you to submit a proposal. Make it count.</div>
+
+        <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>Project Title *</label>
+        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Community Tool Library on Main Street" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 12px",fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box",marginBottom:14}}/>
+
+        <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>Description *</label>
+        <textarea value={desc} onChange={e=>setDesc(e.target.value)} placeholder="What's the idea? Who does it help? How would it work?" rows={4} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 12px",fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box",marginBottom:14,resize:"vertical"}}/>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+          <div>
+            <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>Category</label>
+            <select value={cat} onChange={e=>setCat(e.target.value)} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"9px 10px",fontFamily:"'Lora',serif",fontSize:13}}>
+              {Object.keys(CAT_COLORS).map(c=><option key={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>Jurisdiction</label>
+            <select value={juris} onChange={e=>setJuris(e.target.value)} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"9px 10px",fontFamily:"'Lora',serif",fontSize:13}}>
+              {["Village of Concord","City of Jackson","Summit Township","Jackson County"].map(j=><option key={j}>{j}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>Forward to Official (name + title)</label>
+        <input value={target} onChange={e=>setTarget(e.target.value)} placeholder="e.g. Village President, Village of Concord" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 12px",fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box",marginBottom:14}}/>
+
+        <label style={{fontSize:12,color:"#888",textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:4}}>Supporters needed before forwarding</label>
+        <input value={threshold} onChange={e=>setThreshold(e.target.value)} type="number" min="5" max="500" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 12px",fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box",marginBottom:20}}/>
+
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={submit} style={{flex:1,background:"#1a6b3c",color:"#fff",border:"none",padding:"12px",borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15,cursor:"pointer"}}>Submit Proposal →</button>
+          <button onClick={onClose} style={{background:"transparent",border:"1px solid #ddd",color:"#aaa",padding:"12px 20px",borderRadius:7,cursor:"pointer",fontSize:14}}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Auth Screen ──────────────────────────────────────────────────────────────
+function AuthScreen({ onAuth }) {
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [zip, setZip] = useState("");
+  const [method, setMethod] = useState("2fa");
+  const [step, setStep] = useState("login");
+  const [code, setCode] = useState("");
+  const [idDone, setIdDone] = useState(false);
+  const validZips = ["49237","49201","49202","49203","49204","49221","49240","49250","49259","49263","49272"];
+
+  const goNext = () => {
+    if (!validZips.includes(zip.trim())) { alert("Jackson County ZIP codes only (e.g. 49237 for Concord, 49201 for Jackson)."); return; }
+    setStep("2fa");
+  };
+  const verify = () => {
+    if (method==="2fa"&&code.length<4) return;
+    if (method==="id"&&!idDone) return;
+    onAuth({ email, zip, verified:method, name: email.split("@")[0] });
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#1a1a2e",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');`}</style>
+      <div style={{background:"#fff",borderRadius:14,padding:40,width:400,maxWidth:"100%",boxShadow:"0 30px 80px rgba(0,0,0,0.5)"}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:11,color:"#bbb",letterSpacing:3,textTransform:"uppercase",marginBottom:8}}>Jackson County, Michigan</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:32,color:"#1a1a2e",letterSpacing:-1,lineHeight:1.05}}>The People's<br/>Voice</div>
+          <div style={{marginTop:10,fontSize:11,color:"#5b3a8c",background:"#f0ebf8",padding:"4px 14px",borderRadius:20,display:"inline-block",fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>
+            Vote · Build · Change
+          </div>
+        </div>
+
+        {step==="login"&&<>
+          <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 13px",marginBottom:10,fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box"}}/>
+          <input value={pass} onChange={e=>setPass(e.target.value)} type="password" placeholder="Password" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 13px",marginBottom:10,fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box"}}/>
+          <input value={zip} onChange={e=>setZip(e.target.value)} placeholder="Jackson County ZIP code" style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"10px 13px",marginBottom:16,fontFamily:"'Lora',serif",fontSize:14,boxSizing:"border-box"}}/>
+          <div style={{display:"flex",gap:8,marginBottom:18}}>
+            {[["2fa","📱 Phone 2FA"],["id","🪪 ID Verify"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setMethod(v)} style={{flex:1,padding:"10px",border:`2px solid ${method===v?"#1a1a2e":"#ddd"}`,borderRadius:7,background:method===v?"#1a1a2e":"#fff",color:method===v?"#f0c040":"#555",fontFamily:"'Playfair Display',serif",cursor:"pointer",fontSize:13,fontWeight:method===v?700:400}}>{l}</button>
+            ))}
+          </div>
+          <button onClick={goNext} style={{width:"100%",background:"#1a1a2e",color:"#f0c040",border:"none",padding:"13px",borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15,cursor:"pointer"}}>Continue →</button>
+          <div style={{textAlign:"center",fontSize:11,color:"#ccc",marginTop:10}}>Demo · enter anything · ZIP must be Jackson County</div>
+        </>}
+
+        {step==="2fa"&&method==="2fa"&&<>
+          <div style={{textAlign:"center",fontFamily:"'Lora',serif",fontSize:14,color:"#555",marginBottom:16}}>📱 Enter the code sent to your phone</div>
+          <input value={code} onChange={e=>setCode(e.target.value)} maxLength={6} placeholder="······" style={{width:"100%",border:"2px solid #1a1a2e",borderRadius:7,padding:"14px",textAlign:"center",fontSize:28,letterSpacing:12,fontFamily:"'Playfair Display',serif",boxSizing:"border-box",marginBottom:16}}/>
+          <button onClick={verify} style={{width:"100%",background:"#1a6b3c",color:"#fff",border:"none",padding:"13px",borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15,cursor:"pointer"}}>✓ Enter Platform</button>
+          <div style={{textAlign:"center",fontSize:11,color:"#ccc",marginTop:8}}>Demo: any 4+ digits</div>
+        </>}
+
+        {step==="2fa"&&method==="id"&&<>
+          <div style={{border:"2px dashed #ddd",borderRadius:10,padding:28,textAlign:"center",marginBottom:16}}>
+            <div style={{fontSize:36,marginBottom:8}}>📷</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:4}}>Government ID + Selfie Verification</div>
+            <div style={{fontSize:11,color:"#ccc",marginBottom:14}}>Stripe Identity in production</div>
+            {!idDone
+              ? <button onClick={()=>setIdDone(true)} style={{background:"#5b3a8c",color:"#fff",border:"none",padding:"9px 20px",borderRadius:5,cursor:"pointer",fontSize:13,fontFamily:"'Playfair Display',serif"}}>Simulate Verify</button>
+              : <div style={{color:"#1a6b3c",fontWeight:700}}>✓ Verified</div>}
+          </div>
+          <button onClick={verify} disabled={!idDone} style={{width:"100%",background:idDone?"#1a6b3c":"#ccc",color:"#fff",border:"none",padding:"13px",borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:15,cursor:idDone?"pointer":"not-allowed"}}>✓ Enter Platform</button>
+        </>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+function App() {
+  const [user, setUser] = useState(null);
+  const [rep, setRep] = useState(0);
+  const [mainTab, setMainTab] = useState("bills");
+  const [bills, setBills] = useState(INIT_BILLS);
+  const [projects, setProjects] = useState(INIT_PROJECTS);
+  const [billFilter, setBillFilter] = useState("all");
+  const [userVotes, setUserVotes] = useState({});
+  const [userSupported, setUserSupported] = useState({});
+  const [showPropose, setShowPropose] = useState(false);
+
+  if (!user) return <AuthScreen onAuth={u => { setUser(u); setRep(0); }} />;
+
+  const repInfo = repLevel(rep);
+  const canPropose = rep >= REP_TO_PROPOSE;
+  const filteredBills = billFilter === "all" ? bills : bills.filter(b => b.level === billFilter);
+  const totalVotes = bills.reduce((a,b) => a + b.votes.yes + b.votes.no + b.votes.abstain, 0);
+
+  const gainRep = (pts) => setRep(r => r + pts);
+
+  const handleVote = (id, choice, anon) => {
+    setBills(prev => prev.map(b => b.id!==id?b:{ ...b, votes:{...b.votes,[choice]:b.votes[choice]+1}}));
+    setUserVotes(prev => ({...prev,[id]:{choice,anonymous:anon}}));
+  };
+  const handleBillComment = (id, comment) => setBills(prev => prev.map(b => b.id!==id?b:{...b,comments:[comment,...b.comments]}));
+  const handlePledge = (id, pledge) => setProjects(prev => prev.map(p => p.id!==id?p:{...p,pledges:[...p.pledges,pledge]}));
+  const handleSupport = (id) => {
+    setProjects(prev => prev.map(p => p.id!==id?p:{...p,supporters:p.supporters+1}));
+    setUserSupported(prev => ({...prev,[id]:true}));
+  };
+  const handleProjectComment = (id, comment) => setProjects(prev => prev.map(p => p.id!==id?p:{...p,comments:[comment,...p.comments]}));
+  const handlePropose = (data) => {
+    setProjects(prev => [{
+      id:`proj-${Date.now()}`, proposer: user.name||user.email.split("@")[0], proposerRep:rep,
+      created: new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}),
+      status:"gathering", pledges:[], supporters:1, comments:[], ...data
+    }, ...prev]);
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f4f1ea"}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+        @keyframes spin{to{transform:rotate(360deg)}}
+        *{box-sizing:border-box;margin:0;padding:0}
+        button{transition:opacity 0.15s,transform 0.1s}
+        button:active{transform:scale(0.98)}
+      `}</style>
+
+      {showPropose && <ProposeModal onClose={()=>setShowPropose(false)} onSubmit={handlePropose}/>}
+
+      {/* Header */}
+      <div style={{background:"#1a1a2e",borderBottom:"4px solid #f0c040"}}>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
+          <div>
+            <div style={{fontSize:10,color:"#8899aa",letterSpacing:3,textTransform:"uppercase",marginBottom:3}}>Jackson County, Michigan</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:24,color:"#f0c040",letterSpacing:-0.5}}>The People's Voice</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            {/* Rep badge */}
+            <div style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 14px",textAlign:"center"}}>
+              <div style={{fontSize:10,color:"#8899aa",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Your Reputation</div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:18}}>{repInfo.icon}</span>
+                <div>
+                  <div style={{color:"#f0c040",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15}}>{rep} pts</div>
+                  <div style={{color:repInfo.color,fontSize:11,fontWeight:600}}>{repInfo.label}</div>
+                </div>
+              </div>
+              {!canPropose&&<div style={{fontSize:10,color:"#8899aa",marginTop:4}}>{REP_TO_PROPOSE-rep} more to propose</div>}
+              {canPropose&&<div style={{fontSize:10,color:"#f0c040",marginTop:4}}>✓ Can propose projects</div>}
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{color:"#fff",fontSize:12,fontFamily:"'Playfair Display',serif"}}>{user.email}</div>
+              <div style={{color:"#f0c040",fontSize:11}}>{user.verified==="id"?"🪪 ID Verified":"📱 2FA Verified"} · {user.zip}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div style={{background:"rgba(255,255,255,0.04)",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{maxWidth:900,margin:"0 auto",padding:"8px 20px",display:"flex",gap:24,flexWrap:"wrap"}}>
+            {[["Active Bills",bills.length],["Total Votes",totalVotes.toLocaleString()],["Live Projects",projects.length],["Pledges Made",projects.reduce((a,p)=>a+p.pledges.length,0)],["Verified Locals","247"]].map(([l,v])=>(
+              <div key={l}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:900,color:"#f0c040"}}>{v}</div>
+                <div style={{fontSize:10,color:"#8899aa",textTransform:"uppercase",letterSpacing:1}}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Main tabs */}
+        <div style={{maxWidth:900,margin:"0 auto",padding:"0 20px",display:"flex",gap:0}}>
+          {[["bills","🗳 Bills & Voting"],["projects","🌱 Community Projects"]].map(([t,l])=>(
+            <button key={t} onClick={()=>setMainTab(t)} style={{background:"transparent",border:"none",borderBottom:mainTab===t?"3px solid #f0c040":"3px solid transparent",padding:"12px 20px",fontFamily:"'Playfair Display',serif",fontWeight:mainTab===t?700:400,fontSize:14,cursor:"pointer",color:mainTab===t?"#f0c040":"#8899aa"}}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{maxWidth:900,margin:"0 auto",padding:"16px 20px 50px"}}>
+
+        {/* BILLS TAB */}
+        {mainTab==="bills"&&<>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,alignItems:"center"}}>
+            <span style={{fontSize:12,color:"#aaa",fontFamily:"'Lora',serif"}}>Filter:</span>
+            {[["all","All"],["village","🏘 Concord"],["city","🏙 Jackson"],["township","🌾 Township"],["state","🏛 State"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setBillFilter(v)} style={{background:billFilter===v?"#1a1a2e":"#fff",color:billFilter===v?"#f0c040":"#555",border:`1px solid ${billFilter===v?"#1a1a2e":"#ddd"}`,padding:"7px 14px",borderRadius:20,fontFamily:"'Playfair Display',serif",fontSize:12,cursor:"pointer",fontWeight:billFilter===v?700:400}}>{l}</button>
+            ))}
+            <div style={{marginLeft:"auto",fontSize:12,color:"#aaa"}}>{filteredBills.length} bill{filteredBills.length!==1?"s":""}</div>
+          </div>
+          {filteredBills.map(bill=>(
+            <BillCard key={bill.id} bill={bill} onVote={handleVote} onAddComment={handleBillComment} userVotes={userVotes} onRepGain={gainRep}/>
+          ))}
+        </>}
+
+        {/* PROJECTS TAB */}
+        {mainTab==="projects"&&<>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:20,color:"#1a1a2e"}}>Community Projects</div>
+              <div style={{fontFamily:"'Lora',serif",fontSize:13,color:"#888",marginTop:3}}>Propose. Pledge. Build. Then forward to the people in power.</div>
+            </div>
+            {canPropose ? (
+              <button onClick={()=>setShowPropose(true)} style={{background:"#1a6b3c",color:"#fff",border:"none",padding:"10px 20px",borderRadius:7,fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Propose a Project</button>
+            ) : (
+              <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:7,padding:"10px 16px",fontSize:13,fontFamily:"'Lora',serif",color:"#888",textAlign:"center"}}>
+                <div style={{fontWeight:600,color:"#5b3a8c",marginBottom:2}}>{repInfo.icon} {repInfo.label}</div>
+                Earn <strong>{REP_TO_PROPOSE - rep} more rep</strong> to propose projects<br/>
+                <span style={{fontSize:11}}>Vote (+5) · Comment (+10) · Pledge (+15)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Rep guide */}
+          <div style={{background:"#faf8f3",border:"1px solid #e5dece",borderRadius:8,padding:"12px 16px",marginBottom:16,display:"flex",gap:16,flexWrap:"wrap"}}>
+            <div style={{fontSize:12,color:"#888",fontFamily:"'Lora',serif",fontStyle:"italic",alignSelf:"center"}}>Earn reputation by participating:</div>
+            {[["🗳 Vote on a bill","+5"],["💬 Leave a comment","+10"],["🤲 Pledge to a project","+15"],["🌱 Propose a project","50+ req"]].map(([l,v])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:12,color:"#555",fontFamily:"'Lora',serif"}}>{l}</span>
+                <span style={{background:"#f0c040",color:"#1a1a2e",fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:20}}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {projects.map(proj=>(
+            <ProjectCard key={proj.id} project={proj} onPledge={handlePledge} onSupport={handleSupport} onComment={handleProjectComment} userSupported={userSupported} onRepGain={gainRep}/>
+          ))}
+        </>}
+      </div>
+
+      <div style={{background:"#1a1a2e",borderTop:"3px solid #f0c040",color:"#556677",textAlign:"center",padding:"18px",fontSize:12,lineHeight:1.8}}>
+        <div style={{fontFamily:"'Playfair Display',serif",color:"#f0c040",fontSize:14,marginBottom:4}}>The People's Voice — Jackson County, MI</div>
+        Votes & proposals are unofficial civic engagement · Not affiliated with any government body<br/>
+        <span style={{color:"#5b3a8c"}}>Concord → Jackson → Michigan → Nation</span>
+      </div>
+    </div>
+  );
+}
+
+    // Mount the app
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>
