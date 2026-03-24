@@ -2,28 +2,23 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>The People's Voice</title>
-<meta name="description" content="A free, independent civic platform. Vote on real bills. Build community projects. Hold your representatives accountable."/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#f4f1ea;font-family:'Lora',serif;-webkit-text-size-adjust:100%}
+body{background:#f4f1ea;font-family:'Lora',serif}
 #root{min-height:100vh}
 button{cursor:pointer;font-family:inherit}
-a{color:inherit}
 input,textarea,select{font-family:'Lora',serif}
 @keyframes spin{to{transform:rotate(360deg)}}
-.spin{width:24px;height:24px;border:3px solid #ddd;border-top-color:#1a1a2e;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
-::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-track{background:#f0ece4}
-::-webkit-scrollbar-thumb{background:#c0b89a;border-radius:3px}
+.spin{width:28px;height:28px;border:4px solid #444;border-top-color:#f0c040;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
 </style>
 </head>
 <body>
 <div id="root">
   <div style="min-height:100vh;background:#1a1a2e;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
-    <div class="spin" style="border-color:#444;border-top-color:#f0c040;width:32px;height:32px;border-width:4px"></div>
+    <div class="spin"></div>
     <div style="color:#f0c040;font-family:'Playfair Display',serif;font-size:20px;font-weight:900">The People's Voice</div>
     <div style="color:#8899aa;font-size:13px">Loading...</div>
   </div>
